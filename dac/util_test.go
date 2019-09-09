@@ -479,7 +479,7 @@ func TestPrintObjectsDeclarations(t *testing.T) {
 	}
 
 	if print {
-
+		fmt.Println(declare("messageBytes", message))
 		fmt.Println(declare("credsBytes", creds.ToBytes()))
 		fmt.Println(declare("skBytes", bigToBytes(sk)))
 		fmt.Println(declare("pkBytes", pointToBytes(pk)))
@@ -511,9 +511,8 @@ func recoverValues() (*dac.Credentials, *FP256BN.BIG, interface{}, [][]interface
 	pfb := func(bytes []byte) interface{} {
 		if len(bytes) == 1+2*32 {
 			return FP256BN.ECP_fromBytes(bytes)
-		} else {
-			return FP256BN.ECP2_fromBytes(bytes)
 		}
+		return FP256BN.ECP2_fromBytes(bytes)
 	}
 
 	ysFromBytes := func(bytes [][][]byte) [][]interface{} {
