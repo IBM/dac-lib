@@ -2,6 +2,8 @@ package dac
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"gotest.tools/assert"
@@ -438,4 +440,97 @@ func TestMiscellaneous(t *testing.T) {
 			})
 		}
 	})
+}
+
+// if set, prints out the byte representation of crypto objects
+// suitable for directly copy-pasting into Go code
+func TestPrintObjectsDeclarations(t *testing.T) {
+
+	const print = false
+	const messageLen = 1000
+
+	var message = make([]byte, messageLen)
+	for i := 0; i < messageLen; i++ {
+		message[i] = byte(i)
+	}
+
+	var creds, sk, pk, ys, skNym, pkNym, h, _ = generateChain(2, 2)
+	var proof, _ = creds.Prove(amcl.NewRAND(), sk, pk, Indices{}, []byte(""), ys, h, skNym)
+	signature := SignNym(amcl.NewRAND(), pkNym, skNym, sk, h, message)
+
+	declare := func(name string, bytes []byte) string {
+		var sb strings.Builder
+
+		if !strings.Contains(name, "[") {
+			sb.WriteString("var ")
+		}
+		sb.WriteString(name)
+		sb.WriteString(" = []byte{")
+
+		for index, b := range bytes {
+			sb.WriteString(strconv.Itoa(int(b)))
+			if index != len(bytes)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString("}\n")
+
+		return sb.String()
+	}
+
+	if print {
+
+		fmt.Println(declare("credsBytes", creds.ToBytes()))
+		fmt.Println(declare("skBytes", bigToBytes(sk)))
+		fmt.Println(declare("pkBytes", pointToBytes(pk)))
+		fmt.Println(declare("skNymBytes", bigToBytes(skNym)))
+		fmt.Println(declare("pkNymBytes", pointToBytes(pkNym)))
+		fmt.Println(declare("hBytes", pointToBytes(h)))
+
+		fmt.Println("var ysBytes = setYs()")
+
+		fmt.Println("func setYs() [][][]byte {")
+
+		fmt.Printf("ysTmp := make([][][]byte, %d)\n", len(ys))
+		for i := 0; i < 2; i++ {
+			fmt.Printf("ysTmp[%d] = make([][]byte, %d)\n", i, len(ys[i]))
+			for j := 0; j < len(ys[i]); j++ {
+				fmt.Println(declare(fmt.Sprintf("ysTmp[%d][%d]", i, j), pointToBytes(ys[i][j])))
+			}
+		}
+		fmt.Println("return ysTmp")
+		fmt.Println("}")
+
+		fmt.Println(declare("proofBytes", proof.ToBytes()))
+		fmt.Println(declare("signatureBytes", signature.ToBytes()))
+
+		fmt.Println(`
+var creds, sk, pk, ys, skNym, pkNym, h, proof, signature = recoverValues()
+
+func recoverValues() (*dac.Credentials, *FP256BN.BIG, interface{}, [][]interface{}, *FP256BN.BIG, interface{}, *FP256BN.ECP, *dac.Proof, *dac.NymSignature) {
+	pfb := func(bytes []byte) interface{} {
+		if len(bytes) == 1+2*32 {
+			return FP256BN.ECP_fromBytes(bytes)
+		} else {
+			return FP256BN.ECP2_fromBytes(bytes)
+		}
+	}
+
+	ysFromBytes := func(bytes [][][]byte) [][]interface{} {
+		ysTmp := make([][]interface{}, 2)
+		for i := 0; i < 2; i++ {
+			ysTmp[i] = make([]interface{}, len(bytes[i]))
+			for j := 0; j < len(bytes[i]); j++ {
+				ysTmp[i][j] = pfb(bytes[i][j])
+			}
+		}
+
+		return ysTmp
+	}
+
+	return dac.CredentialsFromBytes(credsBytes), FP256BN.FromBytes(skBytes), pfb(pkBytes), ysFromBytes(ysBytes), FP256BN.FromBytes(skNymBytes), pfb(pkNymBytes), pfb(hBytes).(*FP256BN.ECP), dac.ProofFromBytes(proofBytes), dac.NymSignatureFromBytes(signatureBytes)
+}
+		`)
+
+	}
 }
