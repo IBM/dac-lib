@@ -44,11 +44,11 @@ func RevocationProve(prg *amcl.RAND, signature GrothSignature, sk SK, skNym SK, 
 	r3 := FP256BN.Randomnum(q, prg)
 	r4 := FP256BN.Randomnum(q, prg)
 
-	t1 := FP256BN.Fexp(FP256BN.Ate2(g2.Mul(r1), sigmaPrime.r.(*FP256BN.ECP), g2.Mul(r2), g1Neg))
-	t2 := FP256BN.Fexp(FP256BN.Ate(g2.Mul(r3), sigmaPrime.r.(*FP256BN.ECP)))
-	t3 := productOfExponents(g1, r2, h, r4).(*FP256BN.ECP)
+	com1 := FP256BN.Fexp(FP256BN.Ate2(g2.Mul(r1), sigmaPrime.r.(*FP256BN.ECP), g2.Mul(r2), g1Neg))
+	com2 := FP256BN.Fexp(FP256BN.Ate(g2.Mul(r3), sigmaPrime.r.(*FP256BN.ECP)))
+	com3 := productOfExponents(g1, r2, h, r4).(*FP256BN.ECP)
 
-	proof.c = hashRevocation(q, h, sigmaPrime.r.(*FP256BN.ECP), sigmaPrime.s.(*FP256BN.ECP2), t1, t2, t3, epoch)
+	proof.c = hashRevocation(q, h, sigmaPrime.r.(*FP256BN.ECP), sigmaPrime.s.(*FP256BN.ECP2), com1, com2, com3, epoch)
 
 	proof.res1 = productOfExponents(g2, r1, sigmaPrime.ts[0], proof.c).(*FP256BN.ECP2)
 
@@ -83,32 +83,32 @@ func (proof *RevocationProof) Verify(pkNym PK, epoch *FP256BN.BIG, h *FP256BN.EC
 		e = fmt.Errorf("RevocationProof.Verify: verification failed at e(R', S') == e(g1, y1)*e(pkRev, g2)")
 	}
 
-	t1 := FP256BN.Fexp(FP256BN.Ate2(proof.res1, proof.rPrime, g2.Mul(proof.res2), g1Neg))
-	t1.Mul(FP256BN.Fexp(FP256BN.Ate(ys[0].(*FP256BN.ECP2), pkRev.(*FP256BN.ECP).Mul(cNeg))))
+	com1 := FP256BN.Fexp(FP256BN.Ate2(proof.res1, proof.rPrime, g2.Mul(proof.res2), g1Neg))
+	com1.Mul(FP256BN.Fexp(FP256BN.Ate(ys[0].(*FP256BN.ECP2), pkRev.(*FP256BN.ECP).Mul(cNeg))))
 
-	t2 := FP256BN.Fexp(FP256BN.Ate2(proof.res3, proof.rPrime, ys[1].(*FP256BN.ECP2), pkRev.(*FP256BN.ECP).Mul(cNeg)))
-	t2.Mul(FP256BN.Fexp(FP256BN.Ate(g2.Mul(epoch), g1.Mul(cNeg))))
+	com2 := FP256BN.Fexp(FP256BN.Ate2(proof.res3, proof.rPrime, ys[1].(*FP256BN.ECP2), pkRev.(*FP256BN.ECP).Mul(cNeg)))
+	com2.Mul(FP256BN.Fexp(FP256BN.Ate(g2.Mul(epoch), g1.Mul(cNeg))))
 
-	t3 := productOfExponents(g1, proof.res2, h, proof.res4).(*FP256BN.ECP)
-	t3.Add(pkNym.(*FP256BN.ECP).Mul(cNeg))
+	com3 := productOfExponents(g1, proof.res2, h, proof.res4).(*FP256BN.ECP)
+	com3.Add(pkNym.(*FP256BN.ECP).Mul(cNeg))
 
-	cPrime := hashRevocation(q, h, proof.rPrime, proof.sPrime, t1, t2, t3, epoch)
+	cPrime := hashRevocation(q, h, proof.rPrime, proof.sPrime, com1, com2, com3, epoch)
 
 	if !bigEqual(cPrime, proof.c) {
-		e = fmt.Errorf("RevocationProof.Verify: verification failed cPrime == c")
+		e = fmt.Errorf("RevocationProof.Verify: verification failed at cPrime == c")
 	}
 
 	return
 }
 
-func hashRevocation(q *FP256BN.BIG, h *FP256BN.ECP, r *FP256BN.ECP, s *FP256BN.ECP2, t1 *FP256BN.FP12, t2 *FP256BN.FP12, t3 *FP256BN.ECP, epoch *FP256BN.BIG) *FP256BN.BIG {
+func hashRevocation(q *FP256BN.BIG, h *FP256BN.ECP, r *FP256BN.ECP, s *FP256BN.ECP2, com1 *FP256BN.FP12, com2 *FP256BN.FP12, com3 *FP256BN.ECP, epoch *FP256BN.BIG) *FP256BN.BIG {
 	var raw []byte
 	raw = append(raw, pointToBytes(h)...)
 	raw = append(raw, pointToBytes(r)...)
 	raw = append(raw, pointToBytes(s)...)
-	raw = append(raw, fpToBytes(t1)...)
-	raw = append(raw, fpToBytes(t2)...)
-	raw = append(raw, pointToBytes(t3)...)
+	raw = append(raw, fpToBytes(com1)...)
+	raw = append(raw, fpToBytes(com2)...)
+	raw = append(raw, pointToBytes(com3)...)
 	raw = append(raw, bigToBytes(epoch)...)
 
 	return sha3(q, raw)
