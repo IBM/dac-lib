@@ -80,7 +80,8 @@ func (proof *RevocationProof) Verify(pkNym PK, epoch *FP256BN.BIG, h *FP256BN.EC
 	eRHS := FP256BN.Fexp(FP256BN.Ate2(ys[0].(*FP256BN.ECP2), g1, g2, pkRev.(*FP256BN.ECP)))
 
 	if !eLHS.Equals(eRHS) {
-		e = fmt.Errorf("RevocationProof.Verify: verification failed at e(R', S') == e(g1, y1)*e(pkRev, g2)")
+		e = fmt.Errorf("RevocationProof.Verify: verification failed early at e(R', S') == e(g1, y1)*e(pkRev, g2)")
+		return
 	}
 
 	com1 := FP256BN.Fexp(FP256BN.Ate2(proof.res1, proof.rPrime, g2.Mul(proof.res2), g1Neg))
@@ -95,7 +96,7 @@ func (proof *RevocationProof) Verify(pkNym PK, epoch *FP256BN.BIG, h *FP256BN.EC
 	cPrime := hashRevocation(q, h, proof.rPrime, proof.sPrime, com1, com2, com3, epoch)
 
 	if !bigEqual(cPrime, proof.c) {
-		e = fmt.Errorf("RevocationProof.Verify: verification failed at cPrime == c")
+		e = fmt.Errorf("RevocationProof.Verify: verification failed later at cPrime == c")
 	}
 
 	return
