@@ -5,7 +5,7 @@ import (
 
 	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // helper to generate credentials keys and public h

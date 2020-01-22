@@ -1,18 +1,19 @@
 stages:
 - test
 
-tests:
-  image: dbogatov/docker-sources:golang-1.12.9-alpine3.10
+go-vet:
+  image: dbogatov/docker-sources:golang-1.13-alpine
   stage: test
-  before_script:
-  - apk add --update git
-  - go get -u github.com/dbogatov/fabric-amcl/amcl
-  - go get -u github.com/dustin/go-humanize
-  - go get -u gotest.tools/assert
-  - go get -u github.com/jstemmer/go-junit-report
   script:
-  - cd ./dac/
-  - go test -v -covermode=count -coverprofile=coverage.out 2>&1 | tee /dev/stderr | go-junit-report > report.xml
+  - go vet ./dac/
+  tags:
+  - docker
+
+tests:
+  image: dbogatov/docker-sources:golang-1.13-alpine
+  stage: test
+  script:
+  - go test ./dac/ -v -covermode=count -coverprofile=coverage.out 2>&1 | tee /dev/stderr | go-junit-report > report.xml
   - go tool cover -html=coverage.out -o coverage.html
   artifacts:
     reports:

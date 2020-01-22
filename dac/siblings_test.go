@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var siblings *Siblings

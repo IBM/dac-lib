@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
