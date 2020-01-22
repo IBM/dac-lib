@@ -19,8 +19,8 @@ tests:
   - go tool cover -html=coverage.out -o coverage.html
   artifacts:
     reports:
-      junit: ./dac/report.xml
+      junit: report.xml
     paths:
-      - ./dac/coverage.html
+      - coverage.html
   tags:
   - docker
