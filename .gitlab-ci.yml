@@ -24,3 +24,6 @@ tests:
       - coverage.html
   tags:
   - docker
+
+include:
+  template: Dependency-Scanning.gitlab-ci.yml
