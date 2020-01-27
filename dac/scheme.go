@@ -13,7 +13,7 @@ import (
 // Each link includes a signature, a set of attributes and a public key
 type Credentials struct {
 	signatures []GrothSignature
-	attributes [][]interface{}
+	Attributes [][]interface{}
 	publicKeys []PK
 }
 
@@ -41,10 +41,10 @@ func MakeCredentials(pk PK) (creds *Credentials) {
 	creds = &Credentials{}
 
 	creds.signatures = make([]GrothSignature, 0)
-	creds.attributes = make([][]interface{}, 0)
+	creds.Attributes = make([][]interface{}, 0)
 	creds.publicKeys = make([]PK, 0)
 
-	creds.attributes = append(creds.attributes, nil)
+	creds.Attributes = append(creds.Attributes, nil)
 	creds.signatures = append(creds.signatures, GrothSignature{})
 	creds.publicKeys = append(creds.publicKeys, pk)
 
@@ -80,7 +80,7 @@ func (creds *Credentials) Delegate(sk SK, publicKey PK, attributes []interface{}
 
 	sigma := siblings.SignGroth(sk, append([]interface{}{publicKey}, attributes...))
 
-	creds.attributes = append(creds.attributes, attributes)
+	creds.Attributes = append(creds.Attributes, attributes)
 	creds.signatures = append(creds.signatures, sigma)
 	creds.publicKeys = append(creds.publicKeys, publicKey)
 
@@ -111,7 +111,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 		levelResult := siblings.VerifyGroth(
 			creds.publicKeys[index-1],
 			creds.signatures[index],
-			append([]interface{}{creds.publicKeys[index]}, creds.attributes[index]...),
+			append([]interface{}{creds.publicKeys[index]}, creds.Attributes[index]...),
 		)
 		if levelResult != nil {
 			return fmt.Errorf("verification failed for L = %d", index)
@@ -145,7 +145,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 
 	n := make([]int, L+1)
 	for i := 1; i <= L; i++ {
-		n[i] = len(creds.attributes[i])
+		n[i] = len(creds.Attributes[i])
 	}
 
 	rhoSigma := make([]*FP256BN.BIG, L+1)
@@ -312,7 +312,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		for j := 0; j < n[i]; j++ {
 			if D.contains(i, j) == nil {
 				// line 38 / 47
-				proof.resA[i][j] = productOfExponents(g, rhoA[i][j], creds.attributes[i][j], proof.c)
+				proof.resA[i][j] = productOfExponents(g, rhoA[i][j], creds.Attributes[i][j], proof.c)
 			}
 		}
 	}

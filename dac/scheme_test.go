@@ -70,7 +70,7 @@ func verifyProof(prg *amcl.RAND, L int, D Indices) (result bool) {
 	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(L, 2)
 
 	for i := 0; i < len(D); i++ {
-		D[i].attribute = creds.attributes[D[i].i][D[i].j]
+		D[i].Attribute = creds.Attributes[D[i].I][D[i].J]
 	}
 
 	m := []byte("Message")
@@ -94,14 +94,14 @@ func marshal(L int, n int, attributes AttributesCase) (marshaled []byte) {
 	case All:
 		for i := 1; i <= L; i++ {
 			for j := 0; j < n; j++ {
-				disclosed = append(disclosed, Index{i, j, creds.attributes[i][j]})
+				disclosed = append(disclosed, Index{i, j, creds.Attributes[i][j]})
 			}
 		}
 	case None:
 		disclosed = make(Indices, 0)
 	case One:
 		if n > 0 {
-			disclosed = []Index{{1, 0, creds.attributes[1][0]}}
+			disclosed = []Index{{1, 0, creds.Attributes[1][0]}}
 		}
 	}
 
@@ -344,7 +344,7 @@ func TestSchemeProveNoCrash(t *testing.T) {
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	_, e := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	_, e := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 	assert.NilError(t, e)
 }
 
@@ -358,14 +358,14 @@ func TestSchemeProveDeterministic(t *testing.T) {
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED + 1})
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
-	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	assert.Check(t, proof1.Equals(proof2))
 }
@@ -380,11 +380,11 @@ func TestSchemeProveRandomized(t *testing.T) {
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
-	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	assert.Check(t, !proof1.Equals(proof2))
 }
@@ -399,7 +399,7 @@ func TestSchemeVerifyProofNoCrash(t *testing.T) {
 
 	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(3, 2)
 
-	D := []Index{{1, 1, creds.attributes[1][1]}}
+	D := []Index{{1, 1, creds.Attributes[1][1]}}
 	m := []byte("Message")
 
 	proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
@@ -501,7 +501,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 
 					creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(3, 2)
 
-					D := []Index{{1, 1, creds.attributes[1][1]}}
+					D := []Index{{1, 1, creds.Attributes[1][1]}}
 					m := []byte("Message")
 
 					proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
@@ -526,7 +526,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 					case WrongResNym:
 						proof.resNym = &*FP256BN.NewBIGint(0x13)
 					case WrongAttribute:
-						D[0].attribute = tamper(D[0].attribute)
+						D[0].Attribute = tamper(D[0].Attribute)
 					case WrongY:
 						ys[l%2][0] = tamper(ys[l%2][0])
 					}
@@ -550,7 +550,7 @@ func TestSchemeProofMarshal(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		proof.ToBytes()
 
@@ -560,7 +560,7 @@ func TestSchemeProofMarshal(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		bytes := proof.ToBytes()
 
@@ -572,7 +572,7 @@ func TestSchemeProofMarshal(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		decoded := ProofFromBytes(proof.ToBytes())
 
@@ -659,7 +659,7 @@ func TestSchemeUserErrors(t *testing.T) {
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
 		// here we damage the attributes in credentials
-		creds.attributes = nil
+		creds.Attributes = nil
 
 		_, e := creds.Prove(prg, sk, pk, Indices{}, []byte("Hello"), ys, h, skNym)
 
@@ -717,7 +717,7 @@ func TestSchemeProofEquality(t *testing.T) {
 
 			creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-			D := []Index{{1, 1, creds.attributes[1][1]}}
+			D := []Index{{1, 1, creds.Attributes[1][1]}}
 			m := []byte("Message")
 
 			prg.Clean()
@@ -794,7 +794,7 @@ func TestSchemeCredentialsEquality(t *testing.T) {
 			case WrongPK:
 				creds.publicKeys[1] = tamper(creds.publicKeys[1])
 			case WrongAttribute:
-				creds.attributes[1][1] = tamper(creds.attributes[1][1])
+				creds.Attributes[1][1] = tamper(creds.Attributes[1][1])
 			case WrongSignature:
 				creds.signatures[1].r = tamper(creds.signatures[1].r)
 			case WrongSignatureLength:
@@ -863,7 +863,7 @@ func BenchmarkSchemeProve(b *testing.B) {
 		b.Run(fmt.Sprintf("L=%d", L), func(b *testing.B) {
 			creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, 2)
 			for n := 0; n < b.N; n++ {
-				creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+				creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 			}
 		})
 	}

@@ -184,11 +184,11 @@ func CredentialsFromBytes(input []byte) (creds *Credentials) {
 		creds.publicKeys[i], _ = pointFromBytes(marshal.PublicKeys[i])
 	}
 
-	creds.attributes = make([][]interface{}, len(marshal.Attributes))
+	creds.Attributes = make([][]interface{}, len(marshal.Attributes))
 	for i := 0; i < len(marshal.Attributes); i++ {
-		creds.attributes[i] = make([]interface{}, len(marshal.Attributes[i]))
+		creds.Attributes[i] = make([]interface{}, len(marshal.Attributes[i]))
 		for j := 0; j < len(marshal.Attributes[i]); j++ {
-			creds.attributes[i][j], _ = pointFromBytes(marshal.Attributes[i][j])
+			creds.Attributes[i][j], _ = pointFromBytes(marshal.Attributes[i][j])
 		}
 	}
 
@@ -214,11 +214,11 @@ func (creds *Credentials) ToBytes() (result []byte) {
 		marshal.PublicKeys[i] = pointToBytes(creds.publicKeys[i])
 	}
 
-	marshal.Attributes = make([][][]byte, len(creds.attributes))
-	for i := 0; i < len(creds.attributes); i++ {
-		marshal.Attributes[i] = make([][]byte, len(creds.attributes[i]))
-		for j := 0; j < len(creds.attributes[i]); j++ {
-			marshal.Attributes[i][j] = pointToBytes(creds.attributes[i][j])
+	marshal.Attributes = make([][][]byte, len(creds.Attributes))
+	for i := 0; i < len(creds.Attributes); i++ {
+		marshal.Attributes[i] = make([][]byte, len(creds.Attributes[i]))
+		for j := 0; j < len(creds.Attributes[i]); j++ {
+			marshal.Attributes[i][j] = pointToBytes(creds.Attributes[i][j])
 		}
 	}
 
@@ -234,7 +234,7 @@ func (creds *Credentials) Equals(other *Credentials) (result bool) {
 		return
 	}
 
-	if !pointListOfListEquals(creds.attributes, other.attributes) {
+	if !pointListOfListEquals(creds.Attributes, other.Attributes) {
 		return
 	}
 
@@ -252,8 +252,8 @@ func (creds *Credentials) Equals(other *Credentials) (result bool) {
 
 // Index holds the attribute with its position in credentials
 type Index struct {
-	i, j      int
-	attribute interface{}
+	I, J      int
+	Attribute interface{}
 }
 
 // Indices is an abstraction over the set of Index objects
@@ -266,13 +266,13 @@ func (indices Indices) Swap(i, j int) {
 	indices[i], indices[j] = indices[j], indices[i]
 }
 func (indices Indices) Less(i, j int) bool {
-	return indices[i].i < indices[j].i || indices[i].j < indices[j].j
+	return indices[i].I < indices[j].I || indices[i].J < indices[j].J
 }
 
 func (indices Indices) contains(i, j int) (attribute interface{}) {
 	for _, ij := range indices {
-		if ij.i == i && ij.j == j {
-			return ij.attribute
+		if ij.I == i && ij.J == j {
+			return ij.Attribute
 		}
 	}
 	return
@@ -284,9 +284,9 @@ func (indices Indices) hash() (result []byte) {
 	sort.Sort(d)
 
 	for i := 0; i < len(d); i++ {
-		result = append(result, []byte(strconv.Itoa(d[i].i))...)
-		result = append(result, []byte(strconv.Itoa(d[i].j))...)
-		result = append(result, pointToBytes(d[i].attribute)...)
+		result = append(result, []byte(strconv.Itoa(d[i].I))...)
+		result = append(result, []byte(strconv.Itoa(d[i].J))...)
+		result = append(result, pointToBytes(d[i].Attribute)...)
 	}
 
 	return result
