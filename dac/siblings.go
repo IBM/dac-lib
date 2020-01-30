@@ -73,5 +73,5 @@ func VerifyKeyPair(sk SK, pk PK) bool {
 	} else {
 		target = &(*FP256BN.ECP2_generator().Mul(sk))
 	}
-	return pkEqual(pk, target)
+	return PkEqual(pk, target)
 }

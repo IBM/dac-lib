@@ -44,7 +44,7 @@ func TestNymDeterministicGenerate(t *testing.T) {
 	skNym2, pkNym2 := GenerateNymKeys(prg, sk, h)
 
 	assert.Check(t, bigEqual(skNym1, skNym2))
-	assert.Check(t, pkEqual(pkNym1, pkNym2))
+	assert.Check(t, PkEqual(pkNym1, pkNym2))
 }
 
 // different PRG yield different keys
@@ -55,7 +55,7 @@ func TestNymRandomizedGenerate(t *testing.T) {
 	skNym2, pkNym2 := GenerateNymKeys(prg, sk, h)
 
 	assert.Check(t, !bigEqual(skNym1, skNym2))
-	assert.Check(t, !pkEqual(pkNym1, pkNym2))
+	assert.Check(t, !PkEqual(pkNym1, pkNym2))
 }
 
 // sign method does not crash

@@ -102,7 +102,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 		return fmt.Errorf("empty credentials")
 	}
 
-	if !pkEqual(authorityPK, creds.publicKeys[0]) {
+	if !PkEqual(authorityPK, creds.publicKeys[0]) {
 		return fmt.Errorf("trusted authority's public key and credentials' top-level public key do not match")
 	}
 

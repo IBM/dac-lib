@@ -75,7 +75,7 @@ func testGrothDeterministicGenerate(t *testing.T) {
 	sk2, pk2 := grothLocal.Generate()
 
 	assert.Check(t, bigEqual(sk1, sk2))
-	assert.Check(t, pkEqual(pk1, pk2))
+	assert.Check(t, PkEqual(pk1, pk2))
 }
 
 // different PRG yield different keys
@@ -84,7 +84,7 @@ func testGrothRandomizedGenerate(t *testing.T) {
 	sk2, pk2 := groth.Generate()
 
 	assert.Check(t, !bigEqual(sk1, sk2))
-	assert.Check(t, !pkEqual(pk1, pk2))
+	assert.Check(t, !PkEqual(pk1, pk2))
 }
 
 // sign method does not crash

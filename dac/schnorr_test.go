@@ -66,7 +66,7 @@ func testSchnorrDeterministicGenerate(t *testing.T) {
 	sk2, pk2 := schnorrLocal.Generate()
 
 	assert.Check(t, bigEqual(sk1, sk2))
-	assert.Check(t, pkEqual(pk1, pk2))
+	assert.Check(t, PkEqual(pk1, pk2))
 }
 
 // different PRG yield different keys
@@ -75,7 +75,7 @@ func testSchnorrRandomizedGenerate(t *testing.T) {
 	sk2, pk2 := schnorr.Generate()
 
 	assert.Check(t, !bigEqual(sk1, sk2))
-	assert.Check(t, !pkEqual(pk1, pk2))
+	assert.Check(t, !PkEqual(pk1, pk2))
 }
 
 // sign method does not crash

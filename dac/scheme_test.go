@@ -156,7 +156,7 @@ func TestHappyPath(t *testing.T) {
 	/// un-marshaling
 	credReqIDecoded := CredRequestFromBytes(credReqIBytes)
 	assert.Check(t, credReqIDecoded.equal(credReqI))
-	assert.Check(t, pkEqual(credReqIDecoded.Pk, pki))
+	assert.Check(t, PkEqual(credReqIDecoded.Pk, pki))
 
 	/// validating
 	credReqIValid := credReqIDecoded.Validate()
@@ -205,7 +205,7 @@ func TestHappyPath(t *testing.T) {
 	/// un-marshaling
 	credReqUDecoded := CredRequestFromBytes(credReqUBytes)
 	assert.Check(t, credReqUDecoded.equal(credReqU))
-	assert.Check(t, pkEqual(credReqUDecoded.Pk, pku))
+	assert.Check(t, PkEqual(credReqUDecoded.Pk, pku))
 
 	/// validating
 	credReqUValid := credReqUDecoded.Validate()

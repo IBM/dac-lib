@@ -131,7 +131,7 @@ func (credReq *CredRequest) equal(other *CredRequest) (result bool) {
 		return
 	}
 
-	if !pkEqual(credReq.Pk, other.Pk) {
+	if !PkEqual(credReq.Pk, other.Pk) {
 		return
 	}
 
