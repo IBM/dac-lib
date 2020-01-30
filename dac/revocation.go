@@ -1,5 +1,7 @@
 package dac
 
+// TODO change for h being interface{}
+
 import (
 	"fmt"
 

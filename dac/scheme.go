@@ -133,7 +133,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 // D is a set of disclosed attributes (with their 'coordinates' and values).
 // D can be empty, then no attributes will be disclosed.
 // h and skNym should be received with GenerateNymKeys.
-func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byte, grothYs [][]interface{}, h *FP256BN.ECP, skNym SK) (proof Proof, e error) {
+func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byte, grothYs [][]interface{}, h interface{}, skNym SK) (proof Proof, e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e = r.(error)
@@ -267,7 +267,13 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		coms[r.i][r.j] = r.result
 	}
 
-	comNym := productOfExponents(FP256BN.ECP_generator(), rhoCpk[L], h, rhoNym)
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
+	comNym := productOfExponents(g, rhoCpk[L], h, rhoNym)
 
 	// line 31
 	proof.c = hashCommitments(grothYs, pk, proof.rPrime, coms, comNym, D, m, q)
@@ -327,7 +333,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 // h and pkNym should be received with GenerateNymKeys.
 // D is a set of disclosed attributes (with their 'coordinates' and values).
 // D has to exactly correspond to the one used in generation.
-func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, pkNym PK, D Indices, m []byte) (e error) {
+func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, pkNym PK, D Indices, m []byte) (e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e = r.(error)
@@ -446,7 +452,13 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 		coms[r.i][r.j] = r.result
 	}
 
-	comNym := productOfExponents(FP256BN.ECP_generator(), proof.resCsk, h, proof.resNym)
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
+	comNym := productOfExponents(g, proof.resCsk, h, proof.resNym)
 	pointSubtract(comNym, pointMultiply(pkNym, proof.c))
 
 	// line 25

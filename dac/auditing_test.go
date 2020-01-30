@@ -1,6 +1,8 @@
 package dac
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -9,19 +11,33 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-func auditingEncrypt(prg *amcl.RAND) (h *FP256BN.ECP, userSk *FP256BN.BIG, userPk interface{}, auditSk *FP256BN.BIG, auditPk interface{}, encryption AuditingEncryption, r *FP256BN.BIG) {
+var auditingFirst bool
 
-	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+func auditingGetH(prg *amcl.RAND) (h interface{}) {
+	var g interface{}
+	if auditingFirst {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
+	h = pointMultiply(g, FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
 
-	userSk, userPk = GenerateKeys(prg, 1)
-	auditSk, auditPk = GenerateKeys(prg, 1)
+	return
+}
+
+func auditingEncrypt(prg *amcl.RAND) (h interface{}, userSk *FP256BN.BIG, userPk interface{}, auditSk *FP256BN.BIG, auditPk interface{}, encryption AuditingEncryption, r *FP256BN.BIG) {
+
+	h = auditingGetH(prg)
+
+	userSk, userPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	auditSk, auditPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
 
 	encryption, r = AuditingEncrypt(prg, auditPk, userPk)
 
 	return
 }
 
-func auditingProve(prg *amcl.RAND, userSk *FP256BN.BIG, h *FP256BN.ECP, encryption AuditingEncryption, userPk interface{}, auditPk interface{}, r *FP256BN.BIG) (proof AuditingProof, pkNym interface{}) {
+func auditingProve(prg *amcl.RAND, userSk *FP256BN.BIG, h interface{}, encryption AuditingEncryption, userPk interface{}, auditPk interface{}, r *FP256BN.BIG) (proof AuditingProof, pkNym interface{}) {
 
 	skNym, pkNym := GenerateNymKeys(prg, userSk, h)
 
@@ -32,7 +48,24 @@ func auditingProve(prg *amcl.RAND, userSk *FP256BN.BIG, h *FP256BN.ECP, encrypti
 
 // Tests
 
-func TestAuditingHappyPath(t *testing.T) {
+func TestAuditing(t *testing.T) {
+	for _, first := range []bool{true, false} {
+
+		auditingFirst = first
+
+		t.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(t *testing.T) {
+			for _, test := range []func(*testing.T){
+				testAuditingHappyPath,
+				testAuditingDecryptionFail,
+				testAuditingVerificationFail,
+			} {
+				t.Run(funcToString(reflect.ValueOf(test)), test)
+			}
+		})
+	}
+}
+
+func testAuditingHappyPath(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -49,7 +82,7 @@ func TestAuditingHappyPath(t *testing.T) {
 	assert.Check(t, verificationResult)
 }
 
-func TestAuditingDecryptionFail(t *testing.T) {
+func testAuditingDecryptionFail(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -58,12 +91,12 @@ func TestAuditingDecryptionFail(t *testing.T) {
 	_, _, userPk, auditSk, _, encryption, _ := auditingEncrypt(prg)
 
 	// invalidate encryption
-	encryption.enc1 = encryption.enc1.Mul(FP256BN.NewBIGint(0x13))
+	encryption.enc1 = pointMultiply(encryption.enc1, FP256BN.NewBIGint(0x13))
 
 	assert.Check(t, !pointEqual(encryption.AuditingDecrypt(auditSk), userPk))
 }
 
-func TestAuditingVerificationFail(t *testing.T) {
+func testAuditingVerificationFail(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -82,30 +115,47 @@ func TestAuditingVerificationFail(t *testing.T) {
 
 // Benchmarks
 
-func BenchmarkAuditingEncrypt(b *testing.B) {
+func BenchmarkAuditing(b *testing.B) {
+	for _, first := range []bool{true, false} {
+
+		auditingFirst = first
+
+		b.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(b *testing.B) {
+			for _, benchmark := range []func(*testing.B){
+				benchmarkAuditingEncrypt,
+				benchmarkAuditingProve,
+				benchmarkAuditingVerify,
+			} {
+				b.Run(funcToString(reflect.ValueOf(benchmark)), benchmark)
+			}
+		})
+	}
+}
+
+func benchmarkAuditingEncrypt(b *testing.B) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	_, userPk := GenerateKeys(prg, 1)
-	_, auditPk := GenerateKeys(prg, 1)
+	_, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
 
 	for n := 0; n < b.N; n++ {
 		AuditingEncrypt(prg, auditPk, userPk)
 	}
 }
 
-func BenchmarkAuditingProve(b *testing.B) {
+func benchmarkAuditingProve(b *testing.B) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	h := auditingGetH(prg)
 
-	userSk, userPk := GenerateKeys(prg, 1)
-	_, auditPk := GenerateKeys(prg, 1)
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
 
 	encryption, r := AuditingEncrypt(prg, auditPk, userPk)
 
@@ -116,16 +166,16 @@ func BenchmarkAuditingProve(b *testing.B) {
 	}
 }
 
-func BenchmarkAuditingVerify(b *testing.B) {
+func benchmarkAuditingVerify(b *testing.B) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	h := auditingGetH(prg)
 
-	userSk, userPk := GenerateKeys(prg, 1)
-	_, auditPk := GenerateKeys(prg, 1)
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
 
 	encryption, r := AuditingEncrypt(prg, auditPk, userPk)
 

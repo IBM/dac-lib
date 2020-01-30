@@ -28,7 +28,7 @@ const (
 const SEED = 0x13
 
 // helper that constructs a valid credential chain of L levels with n attributes per level
-func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h *FP256BN.ECP, e error) {
+func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
 	const YsNum = 10
 
 	prg := amcl.NewRAND()
@@ -44,6 +44,11 @@ func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]inter
 	ys[0] = GenerateYs(false, YsNum, prg)
 	ys[1] = GenerateYs(true, YsNum, prg)
 	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	// little hack to generate h in different group
+	if L < 0 {
+		h = FP256BN.ECP2_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+		L = -L
+	}
 
 	for index := 1; index <= L; index++ {
 		// Level-index creds
@@ -826,6 +831,24 @@ func TestSchemeOptimizations(t *testing.T) {
 				assert.Check(t, result)
 			})
 		}
+	}
+}
+
+// make sure h in g2 works fine
+func TestSchemeHInGTwo(t *testing.T) {
+
+	prg := amcl.NewRAND()
+
+	for _, L := range []int{1, 2, 3, 5, 10} {
+		prg.Clean()
+		prg.Seed(1, []byte{SEED + 1})
+
+		t.Run(fmt.Sprintf("L=%d", L), func(t *testing.T) {
+
+			result := verifyProof(prg, -L, []Index{{1, 1, nil}})
+
+			assert.Check(t, result)
+		})
 	}
 }
 

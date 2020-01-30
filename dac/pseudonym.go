@@ -18,9 +18,14 @@ type NymSignature struct {
 
 // GenerateNymKeys generates a fresh pair of pseudonym keys
 // Nym object is needed to commit to a secret key without revealing it
-func GenerateNymKeys(prg *amcl.RAND, sk SK, h *FP256BN.ECP) (skNym SK, pkNym PK) {
+func GenerateNymKeys(prg *amcl.RAND, sk SK, h interface{}) (skNym SK, pkNym PK) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	skNym = FP256BN.Randomnum(q, prg)
 	pkNym = productOfExponents(g, sk, h, skNym)
@@ -29,9 +34,14 @@ func GenerateNymKeys(prg *amcl.RAND, sk SK, h *FP256BN.ECP) (skNym SK, pkNym PK)
 }
 
 // SignNym generates a proof of knowledge of pseudonym's secret key sk and randomness skNym
-func SignNym(prg *amcl.RAND, pkNym PK, skNym SK, sk SK, h *FP256BN.ECP, m []byte) (signature NymSignature) {
+func SignNym(prg *amcl.RAND, pkNym PK, skNym SK, sk SK, h interface{}, m []byte) (signature NymSignature) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	t1 := FP256BN.Randomnum(q, prg)
 	t2 := FP256BN.Randomnum(q, prg)
@@ -50,9 +60,14 @@ func SignNym(prg *amcl.RAND, pkNym PK, skNym SK, sk SK, h *FP256BN.ECP, m []byte
 }
 
 // VerifyNym verifies the proof of knowledge of pseudonym's secret key sk and randomness skNym
-func (signature *NymSignature) VerifyNym(h *FP256BN.ECP, pkNym PK, m []byte) (e error) {
+func (signature *NymSignature) VerifyNym(h interface{}, pkNym PK, m []byte) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	c := hashNym(q, signature.commitment, pkNym, m)
 

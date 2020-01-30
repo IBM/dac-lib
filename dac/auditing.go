@@ -17,49 +17,59 @@ type AuditingProof struct {
 
 // AuditingEncryption ...
 type AuditingEncryption struct {
-	enc1 *FP256BN.ECP
-	enc2 *FP256BN.ECP
+	enc1 interface{}
+	enc2 interface{}
 }
 
 // AuditingEncrypt ...
 func AuditingEncrypt(prg *amcl.RAND, audPk PK, userPk PK) (encryption AuditingEncryption, r *FP256BN.BIG) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := userPk.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	r = FP256BN.Randomnum(q, prg)
 
-	encryption.enc1 = audPk.(*FP256BN.ECP).Mul(r)
-	encryption.enc1.Add(userPk.(*FP256BN.ECP))
+	encryption.enc1 = pointMultiply(audPk, r)
+	pointAdd(encryption.enc1, userPk)
 
-	encryption.enc2 = g.Mul(r)
+	encryption.enc2 = pointMultiply(g, r)
 
 	return
 }
 
 // AuditingDecrypt ...
-func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext *FP256BN.ECP) {
+func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext interface{}) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	skNeg := bigNegate(audSk, q)
 
-	plaintext = encryption.enc2.Mul(skNeg)
-	plaintext.Add(encryption.enc1)
+	plaintext = pointMultiply(encryption.enc2, skNeg)
+	pointAdd(plaintext, encryption.enc1)
 
 	return
 }
 
 // AuditingProve ...
 // TODO comments !!!
-func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, pkNym PK, skNym SK, audPk PK, r *FP256BN.BIG, h *FP256BN.ECP) (proof AuditingProof) {
+func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, pkNym PK, skNym SK, audPk PK, r *FP256BN.BIG, h interface{}) (proof AuditingProof) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	r1 := FP256BN.Randomnum(q, prg)
 	r2 := FP256BN.Randomnum(q, prg)
 	r3 := FP256BN.Randomnum(q, prg)
 
-	com1 := productOfExponents(g, r1, audPk, r2).(*FP256BN.ECP)
-	com2 := g.Mul(r2)
-	com3 := productOfExponents(g, r1, h, r3).(*FP256BN.ECP)
+	com1 := productOfExponents(g, r1, audPk, r2)
+	com2 := pointMultiply(g, r2)
+	com3 := productOfExponents(g, r1, h, r3)
 
 	proof.c = hashAuditing(q, com1, com2, com3, encryption, pkNym)
 
@@ -79,18 +89,23 @@ func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, 
 }
 
 // Verify ...
-func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audPk PK, h *FP256BN.ECP) (e error) {
+func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audPk PK, h interface{}) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	g := FP256BN.ECP_generator()
+	var g interface{}
+	if _, first := h.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 	cNeg := bigNegate(proof.c, q)
 
-	com1 := productOfExponents(g, proof.res1, audPk, proof.res2).(*FP256BN.ECP)
-	com1.Add(encryption.enc1.Mul(cNeg))
+	com1 := productOfExponents(g, proof.res1, audPk, proof.res2)
+	pointAdd(com1, pointMultiply(encryption.enc1, cNeg))
 
-	com2 := productOfExponents(g, proof.res2, encryption.enc2, cNeg).(*FP256BN.ECP)
+	com2 := productOfExponents(g, proof.res2, encryption.enc2, cNeg)
 
-	com3 := productOfExponents(g, proof.res1, h, proof.res3).(*FP256BN.ECP)
-	com3.Add(pkNym.(*FP256BN.ECP).Mul(cNeg))
+	com3 := productOfExponents(g, proof.res1, h, proof.res3)
+	pointAdd(com3, pointMultiply(pkNym, cNeg))
 
 	cPrime := hashAuditing(q, com1, com2, com3, encryption, pkNym)
 
@@ -101,7 +116,7 @@ func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audP
 	return
 }
 
-func hashAuditing(q *FP256BN.BIG, com1 *FP256BN.ECP, com2 *FP256BN.ECP, com3 *FP256BN.ECP, encryption AuditingEncryption, pkNym PK) *FP256BN.BIG {
+func hashAuditing(q *FP256BN.BIG, com1, com2, com3 interface{}, encryption AuditingEncryption, pkNym PK) *FP256BN.BIG {
 	var raw []byte
 	raw = append(raw, pointToBytes(com1)...)
 	raw = append(raw, pointToBytes(com2)...)
