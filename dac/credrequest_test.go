@@ -49,17 +49,14 @@ func testCredRequestMakeNoCrash(t *testing.T) {
 
 // credential request deterministic for the same PRG
 func testCredRequestMakeDeterministic(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 2})
+	prg = getNewRand(SEED + 2)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 2})
+	prg = getNewRand(SEED + 2)
 	credReqOther := MakeCredRequest(prg, sk, credRequestNonce, L)
 
 	assert.Check(t, credReq.equal(credReqOther))
@@ -100,12 +97,10 @@ func testCredRequestEquality(t *testing.T) {
 
 			sk, _ := GenerateKeys(prg, L)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg := getNewRand(SEED + 2)
 			credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg = getNewRand(SEED + 2)
 			credReqOther := MakeCredRequest(prg, sk, credRequestNonce, L)
 
 			assert.Check(t, credReq.equal(credReqOther))

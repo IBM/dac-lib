@@ -13,6 +13,15 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl"
 )
 
+func getNewRand(seed byte) (prg *amcl.RAND) {
+	prg = amcl.NewRAND()
+
+	prg.Clean()
+	prg.Seed(1, []byte{seed})
+
+	return
+}
+
 // verify certain assumptions on how AMCL works
 func TestAMCLAssumptions(t *testing.T) {
 
@@ -23,10 +32,7 @@ func TestAMCLAssumptions(t *testing.T) {
 			g2 := FP256BN.ECP2_generator()
 			q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 
-			prg := amcl.NewRAND()
-
-			prg.Clean()
-			prg.Seed(1, []byte{byte(index)})
+			prg := getNewRand(byte(index))
 
 			rand := func(first bool) interface{} {
 				a := FP256BN.Randomnum(q, prg)
@@ -303,9 +309,7 @@ func TestElementaryProofs(t *testing.T) {
 	g2 := FP256BN.ECP2_generator()
 	g2Neg := pointNegate(g2).(*FP256BN.ECP2)
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	prgGroth := amcl.NewRAND()
 	prgGroth.Clean()
@@ -442,7 +446,7 @@ func TestMiscellaneous(t *testing.T) {
 	})
 }
 
-// if set, prints out the byte representation of crypto objects
+// if print set, prints out the byte representation of crypto objects
 // suitable for directly copy-pasting into Go code
 func TestPrintObjectsDeclarations(t *testing.T) {
 

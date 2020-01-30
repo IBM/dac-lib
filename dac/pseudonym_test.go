@@ -26,10 +26,7 @@ func getH(prg *amcl.RAND) (h interface{}) {
 
 // helper to generate credentials keys and public h
 func generateCredKeys() (sk SK, h interface{}, prg *amcl.RAND) {
-	prg = amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED - 1})
+	prg = getNewRand(SEED - 1)
 
 	h = getH(prg)
 	sk, _ = GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
@@ -64,21 +61,16 @@ func TestNym(t *testing.T) {
 
 // same PRG yields same keys
 func testNymDeterministicGenerate(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h := getH(prg)
 	sk, _ := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg = getNewRand(SEED)
 
 	skNym1, pkNym1 := GenerateNymKeys(prg, sk, h)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg = getNewRand(SEED)
 
 	skNym2, pkNym2 := GenerateNymKeys(prg, sk, h)
 
@@ -198,13 +190,11 @@ func testNymEquality(t *testing.T) {
 			sk, h, prg := generateCredKeys()
 			skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 1})
+			prg = getNewRand(SEED + 1)
 
 			signature := SignNym(prg, pkNym, skNym, sk, h, []byte("Message"))
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 1})
+			prg = getNewRand(SEED + 1)
 
 			other := SignNym(prg, pkNym, skNym, sk, h, []byte("Message"))
 

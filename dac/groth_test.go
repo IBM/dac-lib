@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
 	"gotest.tools/v3/assert"
@@ -16,10 +15,7 @@ var grothMessage []interface{}
 
 // common setup routine for the tests in this file
 func setupGroth(first bool) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	groth = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 
@@ -56,10 +52,7 @@ func TestGroth(t *testing.T) {
 
 // same PRG yields same keys
 func testGrothDeterministicGenerate(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	_, first := groth.g1.(*FP256BN.ECP)
 
@@ -67,8 +60,7 @@ func testGrothDeterministicGenerate(t *testing.T) {
 
 	sk1, pk1 := grothLocal.Generate()
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg = getNewRand(SEED)
 
 	grothLocal = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 
@@ -256,10 +248,7 @@ func testGrothSignatureEquality(t *testing.T) {
 
 		t.Run(string(tc), func(t *testing.T) {
 
-			prg := amcl.NewRAND()
-
-			prg.Clean()
-			prg.Seed(1, []byte{SEED})
+			prg := getNewRand(SEED)
 
 			_, first := groth.g1.(*FP256BN.ECP)
 
@@ -267,8 +256,7 @@ func testGrothSignatureEquality(t *testing.T) {
 			sk, _ := grothLocal.Generate()
 			signature := grothLocal.Sign(sk, grothMessage)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED})
+			prg = getNewRand(SEED)
 
 			grothLocal = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 			sk, _ = grothLocal.Generate()

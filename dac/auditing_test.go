@@ -52,10 +52,7 @@ func TestAuditing(t *testing.T) {
 }
 
 func testAuditingHappyPath(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h, userSk, userPk, auditSk, auditPk, encryption, r := auditingEncrypt(prg)
 
@@ -69,10 +66,7 @@ func testAuditingHappyPath(t *testing.T) {
 }
 
 func testAuditingDecryptionFail(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	_, _, userPk, auditSk, _, encryption, _ := auditingEncrypt(prg)
 
@@ -83,10 +77,7 @@ func testAuditingDecryptionFail(t *testing.T) {
 }
 
 func testAuditingVerificationFail(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h, userSk, userPk, _, auditPk, encryption, r := auditingEncrypt(prg)
 
@@ -119,10 +110,7 @@ func BenchmarkAuditing(b *testing.B) {
 }
 
 func benchmarkAuditingEncrypt(b *testing.B) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	_, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
 	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
@@ -133,10 +121,7 @@ func benchmarkAuditingEncrypt(b *testing.B) {
 }
 
 func benchmarkAuditingProve(b *testing.B) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h := getH(prg)
 
@@ -153,10 +138,7 @@ func benchmarkAuditingProve(b *testing.B) {
 }
 
 func benchmarkAuditingVerify(b *testing.B) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h := getH(prg)
 

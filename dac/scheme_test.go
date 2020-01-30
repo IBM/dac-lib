@@ -31,10 +31,7 @@ const SEED = 0x13
 func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
 	const YsNum = 10
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	// Level-0 creds
 	sk, pk = GenerateKeys(prg, 0)
@@ -87,10 +84,7 @@ func verifyProof(prg *amcl.RAND, L int, D Indices) (result bool) {
 
 // helper that generates a chain, generates a proof and marshals it
 func marshal(L int, n int, attributes AttributesCase) (marshaled []byte) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, n)
 
@@ -122,9 +116,7 @@ func TestHappyPath(t *testing.T) {
 	const YsNum = 10
 	const n = 2
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	ys := make([][]interface{}, 2)
 	ys[0] = GenerateYs(false, YsNum, prg)
@@ -342,10 +334,7 @@ func TestSchemeVerifyTamperedCreds(t *testing.T) {
 // prove method does not crash
 func TestSchemeProveNoCrash(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
@@ -356,17 +345,13 @@ func TestSchemeProveNoCrash(t *testing.T) {
 // same PRG yields same proof
 func TestSchemeProveDeterministic(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
 	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg = getNewRand(SEED)
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
@@ -378,10 +363,7 @@ func TestSchemeProveDeterministic(t *testing.T) {
 // different PRG yields different proof
 func TestSchemeProveRandomized(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
@@ -397,10 +379,7 @@ func TestSchemeProveRandomized(t *testing.T) {
 // verifyProof method does not crash
 func TestSchemeVerifyProofNoCrash(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(3, 2)
 
@@ -415,11 +394,8 @@ func TestSchemeVerifyProofNoCrash(t *testing.T) {
 // verifyProof accepts valid proof
 func TestSchemeVerifyProofCorrect(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
 	for _, L := range []int{1, 2, 3, 5, 10} {
-		prg.Clean()
-		prg.Seed(1, []byte{SEED + 1})
+		prg := getNewRand(SEED + 1)
 
 		t.Run(fmt.Sprintf("L=%d", L), func(t *testing.T) {
 
@@ -430,8 +406,7 @@ func TestSchemeVerifyProofCorrect(t *testing.T) {
 	}
 
 	for _, disclosed := range []int{1, 2, 3, 4, 5} {
-		prg.Clean()
-		prg.Seed(1, []byte{SEED + 1})
+		prg := getNewRand(SEED + 1)
 
 		t.Run(fmt.Sprintf("disclosed level=%d", disclosed), func(t *testing.T) {
 			result := verifyProof(prg, 5, []Index{{disclosed, 1, nil}})
@@ -439,6 +414,8 @@ func TestSchemeVerifyProofCorrect(t *testing.T) {
 			assert.Check(t, result)
 		})
 	}
+
+	prg := getNewRand(SEED)
 
 	t.Run("all disclosed", func(t *testing.T) {
 		var disclosed Indices
@@ -486,10 +463,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 		return a.(*FP256BN.ECP2).Mul(FP256BN.NewBIGint(0x13))
 	}
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, l := range []int{1, 2, 3} {
 		t.Run(fmt.Sprintf("l=%d", l), func(t *testing.T) {
@@ -547,9 +521,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 // checks proof marshalling functionality
 func TestSchemeProofMarshal(t *testing.T) {
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	t.Run("toBytes no crash", func(t *testing.T) {
 
@@ -603,9 +575,7 @@ func TestSchemeMarshalSizes(t *testing.T) {
 // arguments that would have caused the whole program crash
 func TestSchemeUserErrors(t *testing.T) {
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	t.Run("delegate", func(t *testing.T) {
 		// Level-0 creds
@@ -716,8 +686,6 @@ func TestSchemeProofEquality(t *testing.T) {
 
 	for _, tc := range []TestCase{WrongC, WrongRPrime, WrongResA, WrongResT, WrongResS, WrongResCpk, WrongResCsk, WrongResNym, Correct} {
 
-		prg := amcl.NewRAND()
-
 		t.Run(string(tc), func(t *testing.T) {
 
 			creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
@@ -725,12 +693,10 @@ func TestSchemeProofEquality(t *testing.T) {
 			D := []Index{{1, 1, creds.Attributes[1][1]}}
 			m := []byte("Message")
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg := getNewRand(SEED + 2)
 			proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg = getNewRand(SEED + 2)
 			proofDuplicate, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
 
 			assert.Check(t, proof.Equals(proofDuplicate))
@@ -817,9 +783,7 @@ func TestSchemeCredentialsEquality(t *testing.T) {
 
 // make sure the scheme work for any combintation of enabled optimizations
 func TestSchemeOptimizations(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, parallel := range []bool{true, false} {
 		for _, tate := range []bool{true, false} {
@@ -837,11 +801,8 @@ func TestSchemeOptimizations(t *testing.T) {
 // make sure h in g2 works fine
 func TestSchemeHInGTwo(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
 	for _, L := range []int{1, 2, 3, 5, 10} {
-		prg.Clean()
-		prg.Seed(1, []byte{SEED + 1})
+		prg := getNewRand(SEED + 1)
 
 		t.Run(fmt.Sprintf("L=%d", L), func(t *testing.T) {
 
@@ -877,10 +838,7 @@ func BenchmarkSchemeVerify(b *testing.B) {
 
 func BenchmarkSchemeProve(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, L := range []int{1, 2, 3, 5, 10} {
 		b.Run(fmt.Sprintf("L=%d", L), func(b *testing.B) {
@@ -894,10 +852,7 @@ func BenchmarkSchemeProve(b *testing.B) {
 
 func BenchmarkSchemeVerifyProof(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, L := range []int{1, 2, 3, 5, 10} {
 		b.Run(fmt.Sprintf("L=%d", L), func(b *testing.B) {
@@ -935,10 +890,7 @@ func BenchmarkSchemeVerifyProof(b *testing.B) {
 
 func BenchmarkSchemeForPaper(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, prove := range []bool{true, false} {
 		b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
@@ -976,9 +928,7 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 	}{{2, 2}, {5, 3}} {
 		b.Run(fmt.Sprintf("L=%d n=%d", tc.L, tc.n), func(b *testing.B) {
 
-			prg := amcl.NewRAND()
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 1})
+			prg := getNewRand(SEED + 1)
 
 			for _, prove := range []bool{true, false} {
 				b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
@@ -1018,10 +968,7 @@ func BenchmarkSchemeAgainsRust(b *testing.B) {
 	const L = 5
 	const n = 1
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	b.Run(fmt.Sprintf("Prove L=%d n=%d", L, n), func(b *testing.B) {
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, n)

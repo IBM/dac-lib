@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
 	"gotest.tools/v3/assert"
@@ -15,10 +14,7 @@ var schnorr *Schnorr
 
 // common setup routine for the tests in this file
 func setupSchnorr(first bool) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	schnorr = MakeSchnorr(prg, first)
 }
@@ -47,10 +43,7 @@ func TestSchnorr(t *testing.T) {
 
 // same PRG yields same keys
 func testSchnorrDeterministicGenerate(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	_, first := schnorr.g.(*FP256BN.ECP)
 
@@ -58,8 +51,7 @@ func testSchnorrDeterministicGenerate(t *testing.T) {
 
 	sk1, pk1 := schnorrLocal.Generate()
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg = getNewRand(SEED)
 
 	schnorrLocal = MakeSchnorr(prg, first)
 

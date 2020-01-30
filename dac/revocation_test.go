@@ -64,10 +64,7 @@ func TestRevocation(t *testing.T) {
 }
 
 func testRevocationHappyPath(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	pkNym, epoch, h, revokePk, ys, proof := revocationProve(prg, t)
 
@@ -77,10 +74,7 @@ func testRevocationHappyPath(t *testing.T) {
 }
 
 func testRevocationVerificationFailsEarly(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	pkNym, epoch, h, revokePk, ys, proof := revocationProve(prg, t)
 
@@ -93,10 +87,7 @@ func testRevocationVerificationFailsEarly(t *testing.T) {
 }
 
 func testRevocationVerificationFailsLater(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	pkNym, epoch, h, revokePk, ys, proof := revocationProve(prg, t)
 
@@ -130,10 +121,7 @@ func BenchmarkRevocation(b *testing.B) {
 func benchmarkRevocationSign(b *testing.B) {
 	const YsNum = 10
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	epoch := FP256BN.NewBIGint(0x13)
 
@@ -152,10 +140,7 @@ func benchmarkRevocationSign(b *testing.B) {
 func benchmarkRevocationProve(b *testing.B) {
 	const YsNum = 10
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h := getH(prg)
 
@@ -180,10 +165,7 @@ func benchmarkRevocationProve(b *testing.B) {
 func benchmarkRevocationVerify(b *testing.B) {
 	const YsNum = 10
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	h := getH(prg)
 
