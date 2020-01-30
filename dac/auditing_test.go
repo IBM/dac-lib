@@ -11,6 +11,7 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
+// helper that generates valid audit encryption
 func auditingEncrypt(prg *amcl.RAND) (h interface{}, userSk *FP256BN.BIG, userPk interface{}, auditSk *FP256BN.BIG, auditPk interface{}, encryption AuditingEncryption, r *FP256BN.BIG) {
 
 	h = getH(prg)
@@ -23,6 +24,7 @@ func auditingEncrypt(prg *amcl.RAND) (h interface{}, userSk *FP256BN.BIG, userPk
 	return
 }
 
+// helper that generates valid audit proof
 func auditingProve(prg *amcl.RAND, userSk *FP256BN.BIG, h interface{}, encryption AuditingEncryption, userPk interface{}, auditPk interface{}, r *FP256BN.BIG) (proof AuditingProof, pkNym interface{}) {
 
 	skNym, pkNym := GenerateNymKeys(prg, userSk, h)
@@ -65,6 +67,7 @@ func testAuditingHappyPath(t *testing.T) {
 	assert.Check(t, verificationResult)
 }
 
+// malformed encryption
 func testAuditingDecryptionFail(t *testing.T) {
 	prg := getNewRand(SEED)
 
@@ -76,6 +79,7 @@ func testAuditingDecryptionFail(t *testing.T) {
 	assert.Check(t, !pointEqual(encryption.AuditingDecrypt(auditSk), userPk))
 }
 
+// malformed proof
 func testAuditingVerificationFail(t *testing.T) {
 	prg := getNewRand(SEED)
 

@@ -7,7 +7,8 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-// AuditingProof ...
+// AuditingProof is a NIZK that certifies that the auditing encryption is "honest".
+// Honest encryption encrypts user's public key under auditor's public key.
 type AuditingProof struct {
 	c    *FP256BN.BIG
 	res1 *FP256BN.BIG
@@ -15,13 +16,16 @@ type AuditingProof struct {
 	res3 *FP256BN.BIG
 }
 
-// AuditingEncryption ...
+// AuditingEncryption is the ElGamal encryption of user's public key under auditor's public key
 type AuditingEncryption struct {
 	enc1 interface{}
 	enc2 interface{}
 }
 
-// AuditingEncrypt ...
+// AuditingEncrypt produces the auditing encryption.
+// It requires auditor's public key and user's public key.
+// It produces the encryption itself and the randomness used (thus, randomized encryption).
+// Randomness is safe to disclose and it is used to verify the proof.
 func AuditingEncrypt(prg *amcl.RAND, audPk PK, userPk PK) (encryption AuditingEncryption, r *FP256BN.BIG) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	g := generatorSameGroup(userPk)
@@ -36,7 +40,8 @@ func AuditingEncrypt(prg *amcl.RAND, audPk PK, userPk PK) (encryption AuditingEn
 	return
 }
 
-// AuditingDecrypt ...
+// AuditingDecrypt decrypts the auditing encryption.
+// Auditor uses her private key and gets user's public key.
 func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext interface{}) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	skNeg := bigNegate(audSk, q)
@@ -47,8 +52,8 @@ func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext inter
 	return
 }
 
-// AuditingProve ...
-// TODO comments !!!
+// AuditingProve generate a NIZK proof of "honest" encryption.
+// It needs the auditing encryption, user's key pair, pseudonym pair and auditor's public key.
 func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, pkNym PK, skNym SK, audPk PK, r *FP256BN.BIG, h interface{}) (proof AuditingProof) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	g := generatorSameGroup(h)
@@ -78,7 +83,8 @@ func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, 
 	return
 }
 
-// Verify ...
+// Verify validates the auditing NIZK.
+// Successfull validation means that the encryption is "honest".
 func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audPk PK, h interface{}) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	g := generatorSameGroup(h)

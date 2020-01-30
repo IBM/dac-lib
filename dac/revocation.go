@@ -1,7 +1,5 @@
 package dac
 
-// TODO change for h being interface{}
-
 import (
 	"fmt"
 
@@ -9,7 +7,8 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-// RevocationProof ...
+// RevocationProof is a NIZK that a user has been approved for an epoch.
+// More formally, NIZK of Groth signature of user's public key with the epoch.
 type RevocationProof struct {
 	c      *FP256BN.BIG
 	res1   interface{}
@@ -20,7 +19,7 @@ type RevocationProof struct {
 	sPrime interface{}
 }
 
-// SignNonRevoke ...
+// SignNonRevoke generates a Groth signature of user's public key along with the epoch
 func SignNonRevoke(prg *amcl.RAND, sk SK, userPk PK, epoch *FP256BN.BIG, ys []interface{}) (signature GrothSignature) {
 
 	g := generatorSameGroup(userPk)
@@ -34,7 +33,7 @@ func SignNonRevoke(prg *amcl.RAND, sk SK, userPk PK, epoch *FP256BN.BIG, ys []in
 	return
 }
 
-// RevocationProve ...
+// RevocationProve generates a NIZK of the Groth signature of user's public key along with the epoch
 func RevocationProve(prg *amcl.RAND, signature GrothSignature, sk SK, skNym SK, epoch *FP256BN.BIG, h interface{}, ys []interface{}) (proof RevocationProof) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 
@@ -82,7 +81,7 @@ func RevocationProve(prg *amcl.RAND, signature GrothSignature, sk SK, skNym SK, 
 	return
 }
 
-// Verify ...
+// Verify validates the NIZK of the Groth signature of user's public key along with the epoch
 func (proof *RevocationProof) Verify(pkNym PK, epoch *FP256BN.BIG, h interface{}, pkRev PK, ys []interface{}) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 

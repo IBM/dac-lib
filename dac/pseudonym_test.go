@@ -10,8 +10,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// whether h in the first group (g1)
 var hFirst bool
 
+// helper that generates random h in a proper group
 func getH(prg *amcl.RAND) (h interface{}) {
 	var g interface{}
 	if hFirst {
