@@ -351,7 +351,7 @@ func TestSchemeProveDeterministic(t *testing.T) {
 
 	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
-	prg = getNewRand(SEED)
+	prg = getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
