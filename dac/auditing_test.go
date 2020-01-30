@@ -44,7 +44,7 @@ func TestAuditingHappyPath(t *testing.T) {
 
 	proof, pkNym := auditingProve(prg, userSk, h, encryption, userPk, auditPk, r)
 
-	verificationResult := proof.Verify(encryption, userPk, pkNym, auditPk, h)
+	verificationResult := proof.Verify(encryption, pkNym, auditPk, h)
 
 	assert.Check(t, verificationResult)
 }
@@ -75,7 +75,7 @@ func TestAuditingVerificationFail(t *testing.T) {
 
 	proof.c = &*FP256BN.NewBIGint(0x13)
 
-	verificationResult := proof.Verify(encryption, userPk, pkNym, auditPk, h)
+	verificationResult := proof.Verify(encryption, pkNym, auditPk, h)
 
 	assert.ErrorContains(t, verificationResult, "verification")
 }
@@ -134,6 +134,6 @@ func BenchmarkAuditingVerify(b *testing.B) {
 	proof := AuditingProve(prg, encryption, userPk, userSk, pkNym, skNym, auditPk, r, h)
 
 	for n := 0; n < b.N; n++ {
-		proof.Verify(encryption, userPk, pkNym, auditPk, h)
+		proof.Verify(encryption, pkNym, auditPk, h)
 	}
 }

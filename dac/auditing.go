@@ -48,6 +48,7 @@ func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext *FP25
 }
 
 // AuditingProve ...
+// TODO comments !!!
 func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, pkNym PK, skNym SK, audPk PK, r *FP256BN.BIG, h *FP256BN.ECP) (proof AuditingProof) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	g := FP256BN.ECP_generator()
@@ -78,7 +79,7 @@ func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, 
 }
 
 // Verify ...
-func (proof *AuditingProof) Verify(encryption AuditingEncryption, pk PK, pkNym PK, audPk PK, h *FP256BN.ECP) (e error) {
+func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audPk PK, h *FP256BN.ECP) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 	g := FP256BN.ECP_generator()
 	cNeg := bigNegate(proof.c, q)
