@@ -347,3 +347,13 @@ func sha3(q *FP256BN.BIG, raw []byte) (result *FP256BN.BIG) {
 
 	return
 }
+
+func generatorSameGroup(a interface{}) (g interface{}) {
+	if _, first := a.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
+
+	return
+}

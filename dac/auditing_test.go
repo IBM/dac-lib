@@ -11,26 +11,12 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-var auditingFirst bool
-
-func auditingGetH(prg *amcl.RAND) (h interface{}) {
-	var g interface{}
-	if auditingFirst {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
-	h = pointMultiply(g, FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
-
-	return
-}
-
 func auditingEncrypt(prg *amcl.RAND) (h interface{}, userSk *FP256BN.BIG, userPk interface{}, auditSk *FP256BN.BIG, auditPk interface{}, encryption AuditingEncryption, r *FP256BN.BIG) {
 
-	h = auditingGetH(prg)
+	h = getH(prg)
 
-	userSk, userPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
-	auditSk, auditPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	userSk, userPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
+	auditSk, auditPk = GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
 
 	encryption, r = AuditingEncrypt(prg, auditPk, userPk)
 
@@ -51,7 +37,7 @@ func auditingProve(prg *amcl.RAND, userSk *FP256BN.BIG, h interface{}, encryptio
 func TestAuditing(t *testing.T) {
 	for _, first := range []bool{true, false} {
 
-		auditingFirst = first
+		hFirst = first
 
 		t.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(t *testing.T) {
 			for _, test := range []func(*testing.T){
@@ -118,7 +104,7 @@ func testAuditingVerificationFail(t *testing.T) {
 func BenchmarkAuditing(b *testing.B) {
 	for _, first := range []bool{true, false} {
 
-		auditingFirst = first
+		hFirst = first
 
 		b.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(b *testing.B) {
 			for _, benchmark := range []func(*testing.B){
@@ -138,8 +124,8 @@ func benchmarkAuditingEncrypt(b *testing.B) {
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	_, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
-	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	_, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
 
 	for n := 0; n < b.N; n++ {
 		AuditingEncrypt(prg, auditPk, userPk)
@@ -152,10 +138,10 @@ func benchmarkAuditingProve(b *testing.B) {
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := auditingGetH(prg)
+	h := getH(prg)
 
-	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
-	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
 
 	encryption, r := AuditingEncrypt(prg, auditPk, userPk)
 
@@ -172,10 +158,10 @@ func benchmarkAuditingVerify(b *testing.B) {
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := auditingGetH(prg)
+	h := getH(prg)
 
-	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
-	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[auditingFirst])
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
+	_, auditPk := GenerateKeys(prg, map[bool]int{true: 1, false: 2}[hFirst])
 
 	encryption, r := AuditingEncrypt(prg, auditPk, userPk)
 

@@ -57,14 +57,7 @@ func MakeCredRequest(prg *amcl.RAND, sk SK, nonce []byte, L int) (credReq *CredR
 // Note that cheking the nonce is not included (needs to be done separately)
 func (credReq *CredRequest) Validate() (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-
-	var g interface{}
-
-	if _, first := credReq.ResT.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(credReq.ResT)
 
 	// c := H(t, y, nonce)
 	c := hashCredRequest(q, credReq.ResT, credReq.Pk, credReq.Nonce)

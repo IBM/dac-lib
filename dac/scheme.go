@@ -267,12 +267,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		coms[r.i][r.j] = r.result
 	}
 
-	var g interface{}
-	if _, first := h.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(h)
 	comNym := productOfExponents(g, rhoCpk[L], h, rhoNym)
 
 	// line 31
@@ -452,12 +447,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 		coms[r.i][r.j] = r.result
 	}
 
-	var g interface{}
-	if _, first := h.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(h)
 	comNym := productOfExponents(g, proof.resCsk, h, proof.resNym)
 	pointSubtract(comNym, pointMultiply(pkNym, proof.c))
 

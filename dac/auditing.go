@@ -24,12 +24,7 @@ type AuditingEncryption struct {
 // AuditingEncrypt ...
 func AuditingEncrypt(prg *amcl.RAND, audPk PK, userPk PK) (encryption AuditingEncryption, r *FP256BN.BIG) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	var g interface{}
-	if _, first := userPk.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(userPk)
 
 	r = FP256BN.Randomnum(q, prg)
 
@@ -56,12 +51,7 @@ func (encryption *AuditingEncryption) AuditingDecrypt(audSk SK) (plaintext inter
 // TODO comments !!!
 func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, pkNym PK, skNym SK, audPk PK, r *FP256BN.BIG, h interface{}) (proof AuditingProof) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	var g interface{}
-	if _, first := h.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(h)
 
 	r1 := FP256BN.Randomnum(q, prg)
 	r2 := FP256BN.Randomnum(q, prg)
@@ -91,12 +81,7 @@ func AuditingProve(prg *amcl.RAND, encryption AuditingEncryption, pk PK, sk SK, 
 // Verify ...
 func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audPk PK, h interface{}) (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-	var g interface{}
-	if _, first := h.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(h)
 	cNeg := bigNegate(proof.c, q)
 
 	com1 := productOfExponents(g, proof.res1, audPk, proof.res2)

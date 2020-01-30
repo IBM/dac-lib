@@ -1,6 +1,8 @@
 package dac
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -9,24 +11,31 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-func revocationProve(prg *amcl.RAND, t *testing.T) (pkNym interface{}, epoch *FP256BN.BIG, h *FP256BN.ECP, revokePk interface{}, ys []interface{}, proof RevocationProof) {
-	g2 := FP256BN.ECP2_generator()
+func revocationProve(prg *amcl.RAND, t *testing.T) (pkNym interface{}, epoch *FP256BN.BIG, h interface{}, revokePk interface{}, ys []interface{}, proof RevocationProof) {
+
 	const YsNum = 10
 
-	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	h = getH(prg)
+
+	var g interface{}
+	if hFirst {
+		g = FP256BN.ECP2_generator()
+	} else {
+		g = FP256BN.ECP_generator()
+	}
 
 	epoch = FP256BN.NewBIGint(0x13)
 
-	userSk, userPk := GenerateKeys(prg, 0)
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
-	ys = GenerateYs(false, YsNum, prg)
-	groth := MakeGroth(prg, false, ys)
+	ys = GenerateYs(!hFirst, YsNum, prg)
+	groth := MakeGroth(prg, !hFirst, ys)
 
 	revokeSk, revokePk := groth.Generate()
 
 	signature := SignNonRevoke(prg, revokeSk, userPk, epoch, ys)
 
-	assert.Check(t, groth.Verify(revokePk, signature, []interface{}{userPk, g2.Mul(epoch)}))
+	assert.Check(t, groth.Verify(revokePk, signature, []interface{}{userPk, pointMultiply(g, epoch)}))
 
 	skNym, pkNym := GenerateNymKeys(prg, userSk, h)
 
@@ -37,7 +46,24 @@ func revocationProve(prg *amcl.RAND, t *testing.T) (pkNym interface{}, epoch *FP
 
 // Tests
 
-func TestRevocationHappyPath(t *testing.T) {
+func TestRevocation(t *testing.T) {
+	for _, first := range []bool{true, false} {
+
+		hFirst = first
+
+		t.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(t *testing.T) {
+			for _, test := range []func(*testing.T){
+				testRevocationHappyPath,
+				testRevocationVerificationFailsEarly,
+				testRevocationVerificationFailsLater,
+			} {
+				t.Run(funcToString(reflect.ValueOf(test)), test)
+			}
+		})
+	}
+}
+
+func testRevocationHappyPath(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -50,7 +76,7 @@ func TestRevocationHappyPath(t *testing.T) {
 	assert.Check(t, verificationResult)
 }
 
-func TestRevocationVerificationFailsEarly(t *testing.T) {
+func testRevocationVerificationFailsEarly(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -59,14 +85,14 @@ func TestRevocationVerificationFailsEarly(t *testing.T) {
 	pkNym, epoch, h, revokePk, ys, proof := revocationProve(prg, t)
 
 	// tamper
-	proof.rPrime = proof.rPrime.Mul(FP256BN.NewBIGint(0x13))
+	proof.rPrime = pointMultiply(proof.rPrime, FP256BN.NewBIGint(0x13))
 
 	verificationResult := proof.Verify(pkNym, epoch, h, revokePk, ys)
 
 	assert.ErrorContains(t, verificationResult, "early")
 }
 
-func TestRevocationVerificationFailsLater(t *testing.T) {
+func testRevocationVerificationFailsLater(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
@@ -84,7 +110,24 @@ func TestRevocationVerificationFailsLater(t *testing.T) {
 
 // Benchmarks
 
-func BenchmarkRevocationSign(b *testing.B) {
+func BenchmarkRevocation(b *testing.B) {
+	for _, first := range []bool{true, false} {
+
+		hFirst = first
+
+		b.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(b *testing.B) {
+			for _, benchmark := range []func(*testing.B){
+				benchmarkRevocationSign,
+				benchmarkRevocationProve,
+				benchmarkRevocationVerify,
+			} {
+				b.Run(funcToString(reflect.ValueOf(benchmark)), benchmark)
+			}
+		})
+	}
+}
+
+func benchmarkRevocationSign(b *testing.B) {
 	const YsNum = 10
 
 	prg := amcl.NewRAND()
@@ -94,10 +137,10 @@ func BenchmarkRevocationSign(b *testing.B) {
 
 	epoch := FP256BN.NewBIGint(0x13)
 
-	_, userPk := GenerateKeys(prg, 0)
+	_, userPk := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
-	ys := GenerateYs(false, YsNum, prg)
-	groth := MakeGroth(prg, false, ys)
+	ys := GenerateYs(!hFirst, YsNum, prg)
+	groth := MakeGroth(prg, !hFirst, ys)
 
 	revokeSk, _ := groth.Generate()
 
@@ -106,7 +149,7 @@ func BenchmarkRevocationSign(b *testing.B) {
 	}
 }
 
-func BenchmarkRevocationProve(b *testing.B) {
+func benchmarkRevocationProve(b *testing.B) {
 	const YsNum = 10
 
 	prg := amcl.NewRAND()
@@ -114,14 +157,14 @@ func BenchmarkRevocationProve(b *testing.B) {
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	h := getH(prg)
 
 	epoch := FP256BN.NewBIGint(0x13)
 
-	userSk, userPk := GenerateKeys(prg, 0)
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
-	ys := GenerateYs(false, YsNum, prg)
-	groth := MakeGroth(prg, false, ys)
+	ys := GenerateYs(!hFirst, YsNum, prg)
+	groth := MakeGroth(prg, !hFirst, ys)
 
 	revokeSk, _ := groth.Generate()
 
@@ -134,7 +177,7 @@ func BenchmarkRevocationProve(b *testing.B) {
 	}
 }
 
-func BenchmarkRevocationVerify(b *testing.B) {
+func benchmarkRevocationVerify(b *testing.B) {
 	const YsNum = 10
 
 	prg := amcl.NewRAND()
@@ -142,14 +185,14 @@ func BenchmarkRevocationVerify(b *testing.B) {
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	h := getH(prg)
 
 	epoch := FP256BN.NewBIGint(0x13)
 
-	userSk, userPk := GenerateKeys(prg, 0)
+	userSk, userPk := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
-	ys := GenerateYs(false, YsNum, prg)
-	groth := MakeGroth(prg, false, ys)
+	ys := GenerateYs(!hFirst, YsNum, prg)
+	groth := MakeGroth(prg, !hFirst, ys)
 
 	revokeSk, revokePk := groth.Generate()
 

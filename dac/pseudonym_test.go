@@ -1,6 +1,8 @@
 package dac
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
@@ -8,30 +10,67 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+var hFirst bool
+
+func getH(prg *amcl.RAND) (h interface{}) {
+	var g interface{}
+	if hFirst {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
+	h = pointMultiply(g, FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+
+	return
+}
+
 // helper to generate credentials keys and public h
-func generateCredKeys() (SK, *FP256BN.ECP, *amcl.RAND) {
-	prg := amcl.NewRAND()
+func generateCredKeys() (sk SK, h interface{}, prg *amcl.RAND) {
+	prg = amcl.NewRAND()
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED - 1})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
-	sk, _ := GenerateKeys(prg, 0)
+	h = getH(prg)
+	sk, _ = GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
 	return sk, h, prg
 }
 
 // Tests
 
+func TestNym(t *testing.T) {
+	for _, first := range []bool{true, false} {
+
+		hFirst = first
+
+		t.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(t *testing.T) {
+			for _, test := range []func(*testing.T){
+				testNymDeterministicGenerate,
+				testNymEquality,
+				testNymMarshal,
+				testNymRandomizedGenerate,
+				testNymSignNoCrash,
+				testNymVerifyCorrect,
+				testNymVerifyNoCrash,
+				testNymVerifyTamperedSignature,
+				testNymVerifyWrongMessage,
+			} {
+				t.Run(funcToString(reflect.ValueOf(test)), test)
+			}
+		})
+	}
+}
+
 // same PRG yields same keys
-func TestNymDeterministicGenerate(t *testing.T) {
+func testNymDeterministicGenerate(t *testing.T) {
 	prg := amcl.NewRAND()
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
 
-	h := FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
-	sk, _ := GenerateKeys(prg, 0)
+	h := getH(prg)
+	sk, _ := GenerateKeys(prg, map[bool]int{true: 0, false: 1}[hFirst])
 
 	prg.Clean()
 	prg.Seed(1, []byte{SEED})
@@ -48,7 +87,7 @@ func TestNymDeterministicGenerate(t *testing.T) {
 }
 
 // different PRG yield different keys
-func TestNymRandomizedGenerate(t *testing.T) {
+func testNymRandomizedGenerate(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 
 	skNym1, pkNym1 := GenerateNymKeys(prg, sk, h)
@@ -59,7 +98,7 @@ func TestNymRandomizedGenerate(t *testing.T) {
 }
 
 // sign method does not crash
-func TestNymSignNoCrash(t *testing.T) {
+func testNymSignNoCrash(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
@@ -67,7 +106,7 @@ func TestNymSignNoCrash(t *testing.T) {
 }
 
 // verify method does not crash
-func TestNymVerifyNoCrash(t *testing.T) {
+func testNymVerifyNoCrash(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
@@ -76,7 +115,7 @@ func TestNymVerifyNoCrash(t *testing.T) {
 }
 
 // verify accepts correct signature
-func TestNymVerifyCorrect(t *testing.T) {
+func testNymVerifyCorrect(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
@@ -87,7 +126,7 @@ func TestNymVerifyCorrect(t *testing.T) {
 }
 
 // verify rejects wrong message
-func TestNymVerifyWrongMessage(t *testing.T) {
+func testNymVerifyWrongMessage(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
@@ -98,7 +137,7 @@ func TestNymVerifyWrongMessage(t *testing.T) {
 }
 
 // verify rejects tampered signature
-func TestNymVerifyTamperedSignature(t *testing.T) {
+func testNymVerifyTamperedSignature(t *testing.T) {
 	type TestCase string
 	const (
 		WrongResSk      TestCase = "wrong resSk"
@@ -119,7 +158,7 @@ func TestNymVerifyTamperedSignature(t *testing.T) {
 			case WrongResSkNym:
 				signature.resSkNym = &*FP256BN.NewBIGint(0x13)
 			case WrongCommitment:
-				signature.commitment = signature.commitment.(*FP256BN.ECP).Mul(FP256BN.NewBIGint(0x13))
+				signature.commitment = pointMultiply(signature.commitment, FP256BN.NewBIGint(0x13))
 			}
 
 			verifyError := signature.VerifyNym(h, pkNym, []byte("Message"))
@@ -130,7 +169,7 @@ func TestNymVerifyTamperedSignature(t *testing.T) {
 }
 
 // marshaling and un-marshaling yields the original object
-func TestNymMarshal(t *testing.T) {
+func testNymMarshal(t *testing.T) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 	signature := SignNym(prg, pkNym, skNym, sk, h, []byte("Message"))
@@ -142,7 +181,7 @@ func TestNymMarshal(t *testing.T) {
 }
 
 // signature equality routine check
-func TestNymEquality(t *testing.T) {
+func testNymEquality(t *testing.T) {
 
 	type TestCase string
 	const (
@@ -177,7 +216,7 @@ func TestNymEquality(t *testing.T) {
 			case WrongResSkNym:
 				signature.resSkNym = &*FP256BN.NewBIGint(0x13)
 			case WrongCommitment:
-				signature.commitment = signature.commitment.(*FP256BN.ECP).Mul(FP256BN.NewBIGint(0x13))
+				signature.commitment = pointMultiply(signature.commitment, FP256BN.NewBIGint(0x13))
 			}
 
 			if tc == Correct {
@@ -191,7 +230,24 @@ func TestNymEquality(t *testing.T) {
 
 // Benchmarks
 
-func BenchmarkNymGenerate(b *testing.B) {
+func BenchmarkNym(b *testing.B) {
+	for _, first := range []bool{true, false} {
+
+		hFirst = first
+
+		b.Run(fmt.Sprintf("h in g%d", map[bool]int{true: 1, false: 2}[first]), func(b *testing.B) {
+			for _, benchmark := range []func(*testing.B){
+				benchmarkNymGenerate,
+				benchmarkNymSign,
+				benchmarkNymVerify,
+			} {
+				b.Run(funcToString(reflect.ValueOf(benchmark)), benchmark)
+			}
+		})
+	}
+}
+
+func benchmarkNymGenerate(b *testing.B) {
 	sk, h, prg := generateCredKeys()
 
 	for n := 0; n < b.N; n++ {
@@ -199,7 +255,7 @@ func BenchmarkNymGenerate(b *testing.B) {
 	}
 }
 
-func BenchmarkNymSign(b *testing.B) {
+func benchmarkNymSign(b *testing.B) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
@@ -208,7 +264,7 @@ func BenchmarkNymSign(b *testing.B) {
 	}
 }
 
-func BenchmarkNymVerify(b *testing.B) {
+func benchmarkNymVerify(b *testing.B) {
 	sk, h, prg := generateCredKeys()
 	skNym, pkNym := GenerateNymKeys(prg, sk, h)
 
