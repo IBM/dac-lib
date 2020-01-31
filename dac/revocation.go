@@ -19,7 +19,8 @@ type RevocationProof struct {
 	sPrime interface{}
 }
 
-// SignNonRevoke generates a Groth signature of user's public key along with the epoch
+// SignNonRevoke generates a Groth signature of user's public key along with the epoch.
+// Needs revocation authority's private key.
 func SignNonRevoke(prg *amcl.RAND, sk SK, userPk PK, epoch *FP256BN.BIG, ys []interface{}) (signature GrothSignature) {
 
 	g := generatorSameGroup(userPk)
