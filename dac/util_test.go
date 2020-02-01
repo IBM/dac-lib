@@ -311,9 +311,7 @@ func TestElementaryProofs(t *testing.T) {
 
 	prg := getNewRand(SEED)
 
-	prgGroth := amcl.NewRAND()
-	prgGroth.Clean()
-	prgGroth.Seed(1, []byte{SEED + 1})
+	prgGroth := getNewRand(SEED + 1)
 
 	rand := func() *FP256BN.BIG { return FP256BN.Randomnum(q, prg) }
 	tate := func(a *FP256BN.ECP, b *FP256BN.ECP2) *FP256BN.FP12 { return FP256BN.Ate(b, a) }
@@ -458,9 +456,11 @@ func TestPrintObjectsDeclarations(t *testing.T) {
 		message[i] = byte(i)
 	}
 
+	prg := getNewRand(SEED + 3)
+
 	var creds, sk, pk, ys, skNym, pkNym, h, _ = generateChain(2, 2)
-	var proof, _ = creds.Prove(amcl.NewRAND(), sk, pk, Indices{}, []byte(""), ys, h, skNym)
-	signature := SignNym(amcl.NewRAND(), pkNym, skNym, sk, h, message)
+	var proof, _ = creds.Prove(prg, sk, pk, Indices{}, []byte(""), ys, h, skNym)
+	signature := SignNym(prg, pkNym, skNym, sk, h, message)
 
 	declare := func(name string, bytes []byte) string {
 		var sb strings.Builder
