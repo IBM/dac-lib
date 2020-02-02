@@ -99,7 +99,9 @@ func (signature *NymSignature) ToBytes() (result []byte) {
 // NymSignatureFromBytes un-marshals the NIZK object using ASN1 encoding
 func NymSignatureFromBytes(input []byte) (signature *NymSignature) {
 	var marshal nymSignatureMarshal
-	asn1.Unmarshal(input, &marshal)
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling nym-signature failed")
+	}
 
 	signature = &NymSignature{}
 

@@ -813,6 +813,28 @@ func TestSchemeHInGTwo(t *testing.T) {
 	}
 }
 
+// un-marshaling failure properly reported (panic)
+func TestSchemeCredentialsUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	CredentialsFromBytes([]byte{0x13})
+}
+
+// un-marshaling failure properly reported (panic)
+func TestSchemeProofUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	ProofFromBytes([]byte{0x13})
+}
+
 // Benchmarks
 
 func BenchmarkSchemeDelegate(b *testing.B) {

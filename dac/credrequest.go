@@ -92,7 +92,9 @@ type credRequestMarshal struct {
 // CredRequestFromBytes un-marshals the credential request object using ASN1 encoding
 func CredRequestFromBytes(input []byte) (credReq *CredRequest) {
 	var marshal credRequestMarshal
-	asn1.Unmarshal(input, &marshal)
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling cred-request failed")
+	}
 
 	credReq = &CredRequest{}
 

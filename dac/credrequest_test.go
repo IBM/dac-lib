@@ -30,6 +30,7 @@ func TestCredRequest(t *testing.T) {
 				testCredRequestValidateCorrect,
 				testCredRequestValidateTampered,
 				testCredRequestMarshaling,
+				testCredRequestUnMarshalingFail,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -193,6 +194,17 @@ func testCredRequestMarshaling(t *testing.T) {
 	recovered := CredRequestFromBytes(marshal)
 
 	assert.Check(t, credReq.equal(recovered))
+}
+
+// un-marshaling failure properly reported (panic)
+func testCredRequestUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	CredRequestFromBytes([]byte{0x13})
 }
 
 // Benchmarks

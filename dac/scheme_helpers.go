@@ -26,7 +26,9 @@ type proofMarshal struct {
 // ProofFromBytes un-marshals the proof
 func ProofFromBytes(input []byte) (proof *Proof) {
 	var marshal proofMarshal
-	asn1.Unmarshal(input, &marshal)
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling proof failed")
+	}
 
 	proof = &Proof{}
 
@@ -165,7 +167,9 @@ type credentialsMarshal struct {
 // CredentialsFromBytes un-marshals the credentials object using ASN1 encoding
 func CredentialsFromBytes(input []byte) (creds *Credentials) {
 	var marshal credentialsMarshal
-	asn1.Unmarshal(input, &marshal)
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling creds failed")
+	}
 
 	creds = &Credentials{}
 

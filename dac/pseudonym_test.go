@@ -54,6 +54,7 @@ func TestNym(t *testing.T) {
 				testNymVerifyNoCrash,
 				testNymVerifyTamperedSignature,
 				testNymVerifyWrongMessage,
+				testNymUnMarshalingFail,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -218,6 +219,17 @@ func testNymEquality(t *testing.T) {
 			}
 		})
 	}
+}
+
+// un-marshaling failure properly reported (panic)
+func testNymUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	NymSignatureFromBytes([]byte{0x13})
 }
 
 // Benchmarks
