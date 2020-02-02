@@ -29,6 +29,10 @@ include:
   - template: Dependency-Scanning.gitlab-ci.yml
   - template: Code-Quality.gitlab-ci.yml
 
+code_quality:
+  tags:
+    - docker
+
 dependency_scanning:
   variables:
     DS_DISABLE_DIND: "true"
