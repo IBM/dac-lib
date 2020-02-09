@@ -43,6 +43,7 @@ func TestGroth(t *testing.T) {
 				testGrothVerifyWrongMessage,
 				testGrothVerifyNoCrash,
 				testGrothSignatureEquality,
+				testGrothSignatureMarshal,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -280,6 +281,16 @@ func testGrothSignatureEquality(t *testing.T) {
 			}
 		})
 	}
+}
+
+// marshaling and un-marshaling yields the original object
+func testGrothSignatureMarshal(t *testing.T) {
+	sk, _ := groth.Generate()
+
+	signature := groth.Sign(sk, grothMessage)
+	recovered := GrothSignatureFromBytes(signature.ToBytes())
+
+	assert.Check(t, signature.equals(*recovered))
 }
 
 // Benchmarks

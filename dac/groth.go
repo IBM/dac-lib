@@ -255,7 +255,7 @@ func GrothSignatureFromBytes(input []byte) (signature *GrothSignature) {
 
 // ToBytes un-marshals the Groth signature object using ASN1 encoding
 func (signature *GrothSignature) ToBytes() (result []byte) {
-	result, _ = asn1.Marshal(signature.toMarshal())
+	result, _ = asn1.Marshal(*signature.toMarshal())
 
 	return
 }
