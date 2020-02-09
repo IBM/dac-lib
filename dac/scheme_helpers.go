@@ -152,12 +152,6 @@ func (proof *Proof) Equals(other Proof) (result bool) {
 	return true
 }
 
-type grothSignatureMarshal struct {
-	R  []byte
-	S  []byte
-	Ts [][]byte
-}
-
 type credentialsMarshal struct {
 	Signatures []grothSignatureMarshal
 	Attributes [][][]byte
@@ -175,12 +169,7 @@ func CredentialsFromBytes(input []byte) (creds *Credentials) {
 
 	creds.signatures = make([]GrothSignature, len(marshal.Signatures))
 	for i := 0; i < len(marshal.Signatures); i++ {
-		creds.signatures[i].r, _ = PointFromBytes(marshal.Signatures[i].R)
-		creds.signatures[i].s, _ = PointFromBytes(marshal.Signatures[i].S)
-		creds.signatures[i].ts = make([]interface{}, len(marshal.Signatures[i].Ts))
-		for j := 0; j < len(marshal.Signatures[i].Ts); j++ {
-			creds.signatures[i].ts[j], _ = PointFromBytes(marshal.Signatures[i].Ts[j])
-		}
+		creds.signatures[i] = *marshal.Signatures[i].toGrothSignature()
 	}
 
 	creds.publicKeys = make([]interface{}, len(marshal.PublicKeys))
@@ -205,12 +194,7 @@ func (creds *Credentials) ToBytes() (result []byte) {
 
 	marshal.Signatures = make([]grothSignatureMarshal, len(creds.signatures))
 	for i := 0; i < len(marshal.Signatures); i++ {
-		marshal.Signatures[i].R = PointToBytes(creds.signatures[i].r)
-		marshal.Signatures[i].S = PointToBytes(creds.signatures[i].s)
-		marshal.Signatures[i].Ts = make([][]byte, len(creds.signatures[i].ts))
-		for j := 0; j < len(creds.signatures[i].ts); j++ {
-			marshal.Signatures[i].Ts[j] = PointToBytes(creds.signatures[i].ts[j])
-		}
+		marshal.Signatures[i] = *creds.signatures[i].toMarshal()
 	}
 
 	marshal.PublicKeys = make([][]byte, len(creds.publicKeys))
