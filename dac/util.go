@@ -194,7 +194,8 @@ func ate2(g interface{}, h interface{}, k interface{}, l interface{}) *FP256BN.F
 
 // To and from bytes
 
-func pointToBytes(g interface{}) (result []byte) {
+// PointToBytes converts ECP or ECP2 to byte array
+func PointToBytes(g interface{}) (result []byte) {
 
 	if g == nil {
 		return
@@ -226,7 +227,8 @@ func bigToBytes(p *FP256BN.BIG) (result []byte) {
 	return
 }
 
-func pointFromBytes(bytes []byte) (g interface{}, e error) {
+// PointFromBytes converts a byte array to ECP or ECP2
+func PointFromBytes(bytes []byte) (g interface{}, e error) {
 	if len(bytes) == 0 {
 		return
 	}
