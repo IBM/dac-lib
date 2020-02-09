@@ -417,8 +417,8 @@ func TestMiscellaneous(t *testing.T) {
 		assert.Check(t, bigEqual(r, FP256BN.NewBIGint(1)))
 	})
 
-	t.Run("pointFromBytes", func(t *testing.T) {
-		_, e := pointFromBytes(make([]byte, (_ECPByteLength+_ECP2ByteLength)/2))
+	t.Run("PointFromBytes", func(t *testing.T) {
+		_, e := PointFromBytes(make([]byte, (_ECPByteLength+_ECP2ByteLength)/2))
 		assert.ErrorContains(t, e, "length")
 	})
 
@@ -486,10 +486,10 @@ func TestPrintObjectsDeclarations(t *testing.T) {
 		fmt.Println(declare("messageBytes", message))
 		fmt.Println(declare("credsBytes", creds.ToBytes()))
 		fmt.Println(declare("skBytes", bigToBytes(sk)))
-		fmt.Println(declare("pkBytes", pointToBytes(pk)))
+		fmt.Println(declare("pkBytes", PointToBytes(pk)))
 		fmt.Println(declare("skNymBytes", bigToBytes(skNym)))
-		fmt.Println(declare("pkNymBytes", pointToBytes(pkNym)))
-		fmt.Println(declare("hBytes", pointToBytes(h)))
+		fmt.Println(declare("pkNymBytes", PointToBytes(pkNym)))
+		fmt.Println(declare("hBytes", PointToBytes(h)))
 
 		fmt.Println("var ysBytes = setYs()")
 
@@ -499,7 +499,7 @@ func TestPrintObjectsDeclarations(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			fmt.Printf("ysTmp[%d] = make([][]byte, %d)\n", i, len(ys[i]))
 			for j := 0; j < len(ys[i]); j++ {
-				fmt.Println(declare(fmt.Sprintf("ysTmp[%d][%d]", i, j), pointToBytes(ys[i][j])))
+				fmt.Println(declare(fmt.Sprintf("ysTmp[%d][%d]", i, j), PointToBytes(ys[i][j])))
 			}
 		}
 		fmt.Println("return ysTmp")

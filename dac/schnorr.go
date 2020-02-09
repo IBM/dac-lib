@@ -81,7 +81,7 @@ func (schnorr *Schnorr) hash(r interface{}, m []byte) *FP256BN.BIG {
 	var raw []byte
 	var rBytes []byte
 
-	rBytes = pointToBytes(r)
+	rBytes = PointToBytes(r)
 
 	raw = append(raw, rBytes[:]...)
 	raw = append(raw, m[:]...)

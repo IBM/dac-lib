@@ -109,12 +109,12 @@ func (proof *AuditingProof) Verify(encryption AuditingEncryption, pkNym PK, audP
 
 func hashAuditing(q *FP256BN.BIG, com1, com2, com3 interface{}, encryption AuditingEncryption, pkNym PK) *FP256BN.BIG {
 	var raw []byte
-	raw = append(raw, pointToBytes(com1)...)
-	raw = append(raw, pointToBytes(com2)...)
-	raw = append(raw, pointToBytes(com3)...)
-	raw = append(raw, pointToBytes(encryption.enc1)...)
-	raw = append(raw, pointToBytes(encryption.enc2)...)
-	raw = append(raw, pointToBytes(pkNym)...)
+	raw = append(raw, PointToBytes(com1)...)
+	raw = append(raw, PointToBytes(com2)...)
+	raw = append(raw, PointToBytes(com3)...)
+	raw = append(raw, PointToBytes(encryption.enc1)...)
+	raw = append(raw, PointToBytes(encryption.enc2)...)
+	raw = append(raw, PointToBytes(pkNym)...)
 
 	return sha3(q, raw)
 }

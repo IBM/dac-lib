@@ -126,12 +126,12 @@ func (proof *RevocationProof) Verify(pkNym PK, epoch *FP256BN.BIG, h interface{}
 
 func hashRevocation(q *FP256BN.BIG, h, r, s interface{}, com1 *FP256BN.FP12, com2 *FP256BN.FP12, com3 interface{}, epoch *FP256BN.BIG) *FP256BN.BIG {
 	var raw []byte
-	raw = append(raw, pointToBytes(h)...)
-	raw = append(raw, pointToBytes(r)...)
-	raw = append(raw, pointToBytes(s)...)
+	raw = append(raw, PointToBytes(h)...)
+	raw = append(raw, PointToBytes(r)...)
+	raw = append(raw, PointToBytes(s)...)
 	raw = append(raw, fpToBytes(com1)...)
 	raw = append(raw, fpToBytes(com2)...)
-	raw = append(raw, pointToBytes(com3)...)
+	raw = append(raw, PointToBytes(com3)...)
 	raw = append(raw, bigToBytes(epoch)...)
 
 	return sha3(q, raw)

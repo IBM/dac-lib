@@ -38,24 +38,24 @@ func ProofFromBytes(input []byte) (proof *Proof) {
 
 	proof.rPrime = make([]interface{}, len(marshal.RPrime))
 	for i := 0; i < len(marshal.RPrime); i++ {
-		proof.rPrime[i], _ = pointFromBytes(marshal.RPrime[i])
+		proof.rPrime[i], _ = PointFromBytes(marshal.RPrime[i])
 	}
 
 	proof.resS = make([]interface{}, len(marshal.ResS))
 	for i := 0; i < len(marshal.ResS); i++ {
-		proof.resS[i], _ = pointFromBytes(marshal.ResS[i])
+		proof.resS[i], _ = PointFromBytes(marshal.ResS[i])
 	}
 
 	proof.resCpk = make([]interface{}, len(marshal.ResCpk))
 	for i := 0; i < len(marshal.ResCpk); i++ {
-		proof.resCpk[i], _ = pointFromBytes(marshal.ResCpk[i])
+		proof.resCpk[i], _ = PointFromBytes(marshal.ResCpk[i])
 	}
 
 	proof.resT = make([][]interface{}, len(marshal.ResT))
 	for i := 0; i < len(marshal.ResT); i++ {
 		proof.resT[i] = make([]interface{}, len(marshal.ResT[i]))
 		for j := 0; j < len(marshal.ResT[i]); j++ {
-			proof.resT[i][j], _ = pointFromBytes(marshal.ResT[i][j])
+			proof.resT[i][j], _ = PointFromBytes(marshal.ResT[i][j])
 		}
 	}
 
@@ -63,7 +63,7 @@ func ProofFromBytes(input []byte) (proof *Proof) {
 	for i := 0; i < len(marshal.ResA); i++ {
 		proof.resA[i] = make([]interface{}, len(marshal.ResA[i]))
 		for j := 0; j < len(marshal.ResA[i]); j++ {
-			proof.resA[i][j], _ = pointFromBytes(marshal.ResA[i][j])
+			proof.resA[i][j], _ = PointFromBytes(marshal.ResA[i][j])
 		}
 	}
 
@@ -80,24 +80,24 @@ func (proof *Proof) ToBytes() (result []byte) {
 
 	marshal.RPrime = make([][]byte, len(proof.rPrime))
 	for i := 0; i < len(proof.rPrime); i++ {
-		marshal.RPrime[i] = pointToBytes(proof.rPrime[i])
+		marshal.RPrime[i] = PointToBytes(proof.rPrime[i])
 	}
 
 	marshal.ResS = make([][]byte, len(proof.resS))
 	for i := 0; i < len(proof.resS); i++ {
-		marshal.ResS[i] = pointToBytes(proof.resS[i])
+		marshal.ResS[i] = PointToBytes(proof.resS[i])
 	}
 
 	marshal.ResCpk = make([][]byte, len(proof.resCpk))
 	for i := 0; i < len(proof.resT); i++ {
-		marshal.ResCpk[i] = pointToBytes(proof.resCpk[i])
+		marshal.ResCpk[i] = PointToBytes(proof.resCpk[i])
 	}
 
 	marshal.ResT = make([][][]byte, len(proof.resT))
 	for i := 0; i < len(proof.resT); i++ {
 		marshal.ResT[i] = make([][]byte, len(proof.resT[i]))
 		for j := 0; j < len(proof.resT[i]); j++ {
-			marshal.ResT[i][j] = pointToBytes(proof.resT[i][j])
+			marshal.ResT[i][j] = PointToBytes(proof.resT[i][j])
 		}
 	}
 
@@ -105,7 +105,7 @@ func (proof *Proof) ToBytes() (result []byte) {
 	for i := 0; i < len(proof.resA); i++ {
 		marshal.ResA[i] = make([][]byte, len(proof.resA[i]))
 		for j := 0; j < len(proof.resA[i]); j++ {
-			marshal.ResA[i][j] = pointToBytes(proof.resA[i][j])
+			marshal.ResA[i][j] = PointToBytes(proof.resA[i][j])
 		}
 	}
 
@@ -175,24 +175,24 @@ func CredentialsFromBytes(input []byte) (creds *Credentials) {
 
 	creds.signatures = make([]GrothSignature, len(marshal.Signatures))
 	for i := 0; i < len(marshal.Signatures); i++ {
-		creds.signatures[i].r, _ = pointFromBytes(marshal.Signatures[i].R)
-		creds.signatures[i].s, _ = pointFromBytes(marshal.Signatures[i].S)
+		creds.signatures[i].r, _ = PointFromBytes(marshal.Signatures[i].R)
+		creds.signatures[i].s, _ = PointFromBytes(marshal.Signatures[i].S)
 		creds.signatures[i].ts = make([]interface{}, len(marshal.Signatures[i].Ts))
 		for j := 0; j < len(marshal.Signatures[i].Ts); j++ {
-			creds.signatures[i].ts[j], _ = pointFromBytes(marshal.Signatures[i].Ts[j])
+			creds.signatures[i].ts[j], _ = PointFromBytes(marshal.Signatures[i].Ts[j])
 		}
 	}
 
 	creds.publicKeys = make([]interface{}, len(marshal.PublicKeys))
 	for i := 0; i < len(marshal.PublicKeys); i++ {
-		creds.publicKeys[i], _ = pointFromBytes(marshal.PublicKeys[i])
+		creds.publicKeys[i], _ = PointFromBytes(marshal.PublicKeys[i])
 	}
 
 	creds.Attributes = make([][]interface{}, len(marshal.Attributes))
 	for i := 0; i < len(marshal.Attributes); i++ {
 		creds.Attributes[i] = make([]interface{}, len(marshal.Attributes[i]))
 		for j := 0; j < len(marshal.Attributes[i]); j++ {
-			creds.Attributes[i][j], _ = pointFromBytes(marshal.Attributes[i][j])
+			creds.Attributes[i][j], _ = PointFromBytes(marshal.Attributes[i][j])
 		}
 	}
 
@@ -205,24 +205,24 @@ func (creds *Credentials) ToBytes() (result []byte) {
 
 	marshal.Signatures = make([]grothSignatureMarshal, len(creds.signatures))
 	for i := 0; i < len(marshal.Signatures); i++ {
-		marshal.Signatures[i].R = pointToBytes(creds.signatures[i].r)
-		marshal.Signatures[i].S = pointToBytes(creds.signatures[i].s)
+		marshal.Signatures[i].R = PointToBytes(creds.signatures[i].r)
+		marshal.Signatures[i].S = PointToBytes(creds.signatures[i].s)
 		marshal.Signatures[i].Ts = make([][]byte, len(creds.signatures[i].ts))
 		for j := 0; j < len(creds.signatures[i].ts); j++ {
-			marshal.Signatures[i].Ts[j] = pointToBytes(creds.signatures[i].ts[j])
+			marshal.Signatures[i].Ts[j] = PointToBytes(creds.signatures[i].ts[j])
 		}
 	}
 
 	marshal.PublicKeys = make([][]byte, len(creds.publicKeys))
 	for i := 0; i < len(creds.publicKeys); i++ {
-		marshal.PublicKeys[i] = pointToBytes(creds.publicKeys[i])
+		marshal.PublicKeys[i] = PointToBytes(creds.publicKeys[i])
 	}
 
 	marshal.Attributes = make([][][]byte, len(creds.Attributes))
 	for i := 0; i < len(creds.Attributes); i++ {
 		marshal.Attributes[i] = make([][]byte, len(creds.Attributes[i]))
 		for j := 0; j < len(creds.Attributes[i]); j++ {
-			marshal.Attributes[i][j] = pointToBytes(creds.Attributes[i][j])
+			marshal.Attributes[i][j] = PointToBytes(creds.Attributes[i][j])
 		}
 	}
 
@@ -290,7 +290,7 @@ func (indices Indices) hash() (result []byte) {
 	for i := 0; i < len(d); i++ {
 		result = append(result, []byte(strconv.Itoa(d[i].I))...)
 		result = append(result, []byte(strconv.Itoa(d[i].J))...)
-		result = append(result, pointToBytes(d[i].Attribute)...)
+		result = append(result, PointToBytes(d[i].Attribute)...)
 	}
 
 	return result

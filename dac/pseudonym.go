@@ -70,8 +70,8 @@ func (signature *NymSignature) VerifyNym(h interface{}, pkNym PK, m []byte) (e e
 
 func hashNym(q *FP256BN.BIG, commitment interface{}, pkNym PK, m []byte) *FP256BN.BIG {
 	var raw []byte
-	raw = append(raw, pointToBytes(commitment)...)
-	raw = append(raw, pointToBytes(pkNym)...)
+	raw = append(raw, PointToBytes(commitment)...)
+	raw = append(raw, PointToBytes(pkNym)...)
 	raw = append(raw, m...)
 
 	return sha3(q, raw)
@@ -89,7 +89,7 @@ func (signature *NymSignature) ToBytes() (result []byte) {
 
 	marshal.ResSk = bigToBytes(signature.resSk)
 	marshal.ResSkNym = bigToBytes(signature.resSkNym)
-	marshal.Commitment = pointToBytes(signature.commitment)
+	marshal.Commitment = PointToBytes(signature.commitment)
 
 	result, _ = asn1.Marshal(marshal)
 
@@ -105,7 +105,7 @@ func NymSignatureFromBytes(input []byte) (signature *NymSignature) {
 
 	signature = &NymSignature{}
 
-	signature.commitment, _ = pointFromBytes(marshal.Commitment)
+	signature.commitment, _ = PointFromBytes(marshal.Commitment)
 	signature.resSk = FP256BN.FromBytes(marshal.ResSk)
 	signature.resSkNym = FP256BN.FromBytes(marshal.ResSkNym)
 

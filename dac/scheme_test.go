@@ -241,7 +241,7 @@ func TestHappyPath(t *testing.T) {
 	var message []byte
 	message = append(message, txBody...)
 	message = append(message, proofBytes...)
-	message = append(message, pointToBytes(pkNym)...)
+	message = append(message, PointToBytes(pkNym)...)
 
 	signature := SignNym(prg, pkNym, skNym, sku, h, message)
 

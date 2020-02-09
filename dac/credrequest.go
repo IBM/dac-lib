@@ -75,8 +75,8 @@ func (credReq *CredRequest) Validate() (e error) {
 
 func hashCredRequest(q *FP256BN.BIG, t interface{}, y interface{}, nonce []byte) *FP256BN.BIG {
 	var raw []byte
-	raw = append(raw, pointToBytes(t)...)
-	raw = append(raw, pointToBytes(y)...)
+	raw = append(raw, PointToBytes(t)...)
+	raw = append(raw, PointToBytes(y)...)
 	raw = append(raw, nonce...)
 
 	return sha3(q, raw)
@@ -99,8 +99,8 @@ func CredRequestFromBytes(input []byte) (credReq *CredRequest) {
 	credReq = &CredRequest{}
 
 	credReq.Nonce = marshal.Nonce
-	credReq.Pk, _ = pointFromBytes(marshal.PK)
-	credReq.ResT, _ = pointFromBytes(marshal.ResT)
+	credReq.Pk, _ = PointFromBytes(marshal.PK)
+	credReq.ResT, _ = PointFromBytes(marshal.ResT)
 	credReq.ResR = FP256BN.FromBytes(marshal.ResR)
 
 	return
@@ -111,8 +111,8 @@ func (credReq *CredRequest) ToBytes() (result []byte) {
 	var marshal credRequestMarshal
 
 	marshal.Nonce = credReq.Nonce
-	marshal.PK = pointToBytes(credReq.Pk)
-	marshal.ResT = pointToBytes(credReq.ResT)
+	marshal.PK = PointToBytes(credReq.Pk)
+	marshal.ResT = PointToBytes(credReq.ResT)
 	marshal.ResR = bigToBytes(credReq.ResR)
 
 	result, _ = asn1.Marshal(marshal)

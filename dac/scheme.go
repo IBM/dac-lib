@@ -467,13 +467,13 @@ func hashCommitments(grothYs [][]interface{}, pk PK, rPrime []interface{}, coms 
 
 	for i := 0; i < len(grothYs); i++ {
 		for j := 0; j < len(grothYs[i%2]); j++ {
-			raw = append(raw, pointToBytes(grothYs[i%2][j])...)
+			raw = append(raw, PointToBytes(grothYs[i%2][j])...)
 		}
 	}
-	raw = append(raw, pointToBytes(pk)...)
+	raw = append(raw, PointToBytes(pk)...)
 	for i := 0; i < len(rPrime); i++ {
 		if rPrime[i] != nil {
-			raw = append(raw, pointToBytes(rPrime[i])...)
+			raw = append(raw, PointToBytes(rPrime[i])...)
 		}
 	}
 	for i := 0; i < len(coms); i++ {
@@ -483,7 +483,7 @@ func hashCommitments(grothYs [][]interface{}, pk PK, rPrime []interface{}, coms 
 			}
 		}
 	}
-	raw = append(raw, pointToBytes(comNym)...)
+	raw = append(raw, PointToBytes(comNym)...)
 	raw = append(raw, D.hash()...)
 	raw = append(raw, m...)
 
