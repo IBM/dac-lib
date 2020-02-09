@@ -44,6 +44,7 @@ func TestGroth(t *testing.T) {
 				testGrothVerifyNoCrash,
 				testGrothSignatureEquality,
 				testGrothSignatureMarshal,
+				testGrothSignatureUnMarshalFails,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -291,6 +292,17 @@ func testGrothSignatureMarshal(t *testing.T) {
 	recovered := GrothSignatureFromBytes(signature.ToBytes())
 
 	assert.Check(t, signature.equals(*recovered))
+}
+
+// un-marshaling properly panics
+func testGrothSignatureUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	GrothSignatureFromBytes([]byte{0x13})
 }
 
 // Benchmarks
