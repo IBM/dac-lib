@@ -2,7 +2,6 @@ package dac
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
@@ -199,9 +198,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		total += n[i] + 2
 	}
 
-	var wg sync.WaitGroup
-	communication := make(chan eResult, total)
-	wg.Add(total)
+	eComputer := makeEProductComputer(total)
 
 	// line 9 / 20
 	for i := 1; i <= L; i++ {
@@ -224,7 +221,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		if i != 1 {
 			e2com1 = &eArg{g1Neg, g2, rhoCpk[i-1]}
 		}
-		eProductParallel(&wg, i, n[i], communication, e1com1, e2com1)
+		eComputer.enqueue(i, n[i], e1com1, e2com1)
 
 		// line 11 / 22
 		rhoSigmaT := FP256BN.Modmul(rhoSigma[i], rhoT[i][0], q)
@@ -234,7 +231,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		if i != 1 {
 			e3com2 = &eArg{pointNegate(grothYs[i%2][0]), g2, rhoCpk[i-1]}
 		}
-		eProductParallel(&wg, i, n[i]+1, communication, e1com2, e2com2, e3com2)
+		eComputer.enqueue(i, n[i]+1, e1com2, e2com2, e3com2)
 
 		// line 12 / 23
 		for j := 0; j < n[i]; j++ {
@@ -253,18 +250,13 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 				// line 16 / 27
 				e3com = &eArg{g1, g2Neg, rhoA[i][j]}
 			}
-			eProductParallel(&wg, i, j, communication, e1com, e2com, e3com)
+			eComputer.enqueue(i, j, e1com, e2com, e3com)
 		}
 	}
 
-	wg.Wait()
-	close(communication)
-	for r := range communication {
-		if r.result == nil {
-			e = fmt.Errorf("error occurred in computing coms[%d][%d]", r.i, r.j)
-			return
-		}
-		coms[r.i][r.j] = r.result
+	coms, e = eComputer.compute()
+	if e != nil {
+		return
 	}
 
 	g := generatorSameGroup(h)
@@ -350,9 +342,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 		coms[i] = make([]*FP256BN.FP12, n[i]+2)
 	}
 
-	var wg sync.WaitGroup
-	communication := make(chan eResult, total)
-	wg.Add(total)
+	eComputer := makeEProductComputer(total)
 
 	cNeg := bigNegate(proof.c, q)
 
@@ -382,7 +372,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 		if i == 1 {
 			e4com1 = &eArg{g1, pk, cNeg}
 		}
-		eProductParallel(&wg, i, n[i], communication, e1com1, e2com1, e3com1, e4com1)
+		eComputer.enqueue(i, n[i], e1com1, e2com1, e3com1, e4com1)
 
 		// line 5
 		e1com2 := &eArg{proof.resT[i][0], proof.rPrime[i], nil}
@@ -402,7 +392,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 		if i == 1 {
 			e5com2 = &eArg{grothYs[i%2][0], pk, cNeg}
 		}
-		eProductParallel(&wg, i, n[i]+1, communication, e1com2, e2com2, e3com2, e4com2, e5com2)
+		eComputer.enqueue(i, n[i]+1, e1com2, e2com2, e3com2, e4com2, e5com2)
 
 		// line 6
 		for j := 0; j < n[i]; j++ {
@@ -419,7 +409,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 				if i == 1 {
 					e4com = &eArg{grothYs[i%2][j+1], pk, cNeg}
 				}
-				eProductParallel(&wg, i, j, communication, e1com, e2com, e3com, e4com)
+				eComputer.enqueue(i, j, e1com, e2com, e3com, e4com)
 			} else {
 				// line 10
 				e1com := &eArg{proof.resT[i][j+1], proof.rPrime[i], nil}
@@ -432,19 +422,14 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, p
 				if i == 1 {
 					e4com = &eArg{grothYs[i%2][j+1], pk, cNeg}
 				}
-				eProductParallel(&wg, i, j, communication, e1com, e2com, e3com, e4com)
+				eComputer.enqueue(i, j, e1com, e2com, e3com, e4com)
 			}
 		}
 	}
 
-	wg.Wait()
-	close(communication)
-	for r := range communication {
-		if r.result == nil {
-			e = fmt.Errorf("error occurred in computing coms[%d][%d]", r.i, r.j)
-			return
-		}
-		coms[r.i][r.j] = r.result
+	coms, e = eComputer.compute()
+	if e != nil {
+		return
 	}
 
 	g := generatorSameGroup(h)

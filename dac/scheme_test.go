@@ -793,20 +793,38 @@ func TestSchemeCredentialsEquality(t *testing.T) {
 	}
 }
 
-// make sure the scheme work for any combintation of enabled optimizations
+// make sure the scheme works for any combintation of enabled optimizations
 func TestSchemeOptimizations(t *testing.T) {
 	prg := getNewRand(SEED + 1)
 
 	for _, parallel := range []bool{true, false} {
 		for _, tate := range []bool{true, false} {
 			t.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(t *testing.T) {
-				_ParallelOptimization = parallel
+				if parallel {
+					_Workers = 3
+				} else {
+					_Workers = 1
+				}
 				_OptimizeTate = tate
 
 				result := verifyProof(prg, 3, Indices{})
 				assert.Check(t, result)
 			})
 		}
+	}
+}
+
+// make sure the scheme works for different numbers of workers
+func TestSchemeWorkersVary(t *testing.T) {
+	prg := getNewRand(SEED + 1)
+
+	for workers := 0; workers < 15; workers++ {
+		t.Run(fmt.Sprintf("workers=%d", workers), func(t *testing.T) {
+			_Workers = uint(workers)
+
+			result := verifyProof(prg, 2, Indices{})
+			assert.Check(t, result)
+		})
 	}
 }
 
@@ -969,7 +987,11 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 					for _, parallel := range []bool{true, false} {
 						for _, tate := range []bool{true, false} {
 							b.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(b *testing.B) {
-								_ParallelOptimization = parallel
+								if parallel {
+									_Workers = 3
+								} else {
+									_Workers = 1
+								}
 								_OptimizeTate = tate
 
 								creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(tc.L, tc.n)
@@ -990,6 +1012,51 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 								}
 							})
 						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkSchemeWorkersVary(b *testing.B) {
+
+	for _, tc := range []struct {
+		L int
+		n int
+	}{{1, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}} {
+		b.Run(fmt.Sprintf("L=%d n=%d", tc.L, tc.n), func(b *testing.B) {
+
+			prg := getNewRand(SEED + 1)
+
+			for _, prove := range []bool{true, false} {
+				b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
+					for workers := 0; workers <= 5; workers++ {
+
+						b.Run(fmt.Sprintf("workers=%d", workers*2), func(b *testing.B) {
+							_Workers = uint(workers * 2)
+
+							creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(tc.L, tc.n)
+
+							m := []byte("Message")
+							D := []Index{}
+
+							if prove {
+								for n := 0; n < b.N; n++ {
+									if _, e := creds.Prove(prg, sk, pk, D, m, ys, h, skNym); e != nil {
+										panic(e)
+									}
+								}
+							} else {
+								proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
+
+								for n := 0; n < b.N; n++ {
+									if e := proof.VerifyProof(pk, ys, h, pkNym, D, m); e != nil {
+										panic(e)
+									}
+								}
+							}
+						})
 					}
 				})
 			}
@@ -1028,7 +1095,10 @@ func BenchmarkSchemeAgainsOriginalPaper(b *testing.B) {
 
 	for _, prove := range []bool{true, false} {
 		b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
-			for _, combination := range [][]int{
+			for _, c := range []struct {
+				n1 int
+				n2 int
+			}{
 				{0, 0},
 				{1, 0},
 				{2, 0},
@@ -1041,11 +1111,9 @@ func BenchmarkSchemeAgainsOriginalPaper(b *testing.B) {
 				{1, 1},
 				{2, 1},
 			} {
-				n1 := combination[0]
-				n2 := combination[1]
-				b.Run(fmt.Sprintf("n1=%d n2=%d", n1, n2), func(b *testing.B) {
+				b.Run(fmt.Sprintf("n1=%d n2=%d", c.n1, c.n2), func(b *testing.B) {
 
-					creds, sk, pk, ys, skNym, pkNym, h, _ := generateCustomChain(L, []int{0, n1, n2})
+					creds, sk, pk, ys, skNym, pkNym, h, _ := generateCustomChain(L, []int{0, c.n1, c.n2})
 
 					m := []byte("Message")
 					if prove {

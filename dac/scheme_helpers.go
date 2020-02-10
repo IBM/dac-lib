@@ -2,6 +2,7 @@ package dac
 
 import (
 	"encoding/asn1"
+	"fmt"
 	"sort"
 	"strconv"
 	"sync"
@@ -9,7 +10,7 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-var _ParallelOptimization = true
+var _Workers uint = 0
 var _OptimizeTate = true
 
 type proofMarshal struct {
@@ -280,30 +281,85 @@ func (indices Indices) hash() (result []byte) {
 	return result
 }
 
-type eResult struct {
-	result *FP256BN.FP12
-	i      int
-	j      int
+type eProductComputer struct {
+	queue []*eComArg
+	wg    *sync.WaitGroup
 }
 
-func eProductParallel(
-	wg *sync.WaitGroup,
-	i int,
-	j int,
-	communication chan eResult,
-	arguments ...*eArg,
-) {
-	routine := func() {
-		defer wg.Done()
+type eComArg struct {
+	args []*eArg
+	i    int
+	j    int
+}
 
-		result := eProduct(arguments...)
-
-		communication <- eResult{result, i, j}
+func makeEProductComputer(capacity int) (eComputer *eProductComputer) {
+	eComputer = &eProductComputer{
+		queue: make([]*eComArg, 0, capacity),
+		wg:    &sync.WaitGroup{},
 	}
 
-	if _ParallelOptimization {
-		go routine()
+	return
+}
+
+func (eComputer *eProductComputer) enqueue(i int, j int, arguments ...*eArg) {
+	eComputer.queue = append(eComputer.queue, &eComArg{
+		args: arguments,
+		i:    i,
+		j:    j,
+	})
+}
+
+func (eComputer *eProductComputer) compute() (results [][]*FP256BN.FP12, e error) {
+	workers := int(_Workers)
+	if workers < 1 {
+		workers = len(eComputer.queue)
+	}
+
+	var maxI, maxJ int
+	for _, arg := range eComputer.queue {
+		if arg.i > maxI {
+			maxI = arg.i
+		}
+		if arg.j > maxJ {
+			maxJ = arg.j
+		}
+	}
+
+	results = make([][]*FP256BN.FP12, maxI+1)
+	for i := 0; i < maxI+1; i++ {
+		results[i] = make([]*FP256BN.FP12, maxJ+1)
+	}
+
+	argCount := len(eComputer.queue)
+	if workers > argCount {
+		workers = argCount
+	}
+	eComputer.wg.Add(workers)
+
+	task := func(worker int) {
+		defer eComputer.wg.Done()
+
+		for i := 0; i < argCount; i++ {
+			if i%workers == worker {
+				result := eProduct(eComputer.queue[i].args...)
+				if result == nil {
+					e = fmt.Errorf("error occurred in computing coms[%d][%d] (latest reported)", eComputer.queue[i].i, eComputer.queue[i].j)
+				}
+				results[eComputer.queue[i].i][eComputer.queue[i].j] = result
+			}
+		}
+	}
+
+	if workers == 1 {
+		task(0)
 	} else {
-		routine()
+
+		for i := 0; i < workers; i++ {
+			go task(i)
+		}
+
+		eComputer.wg.Wait()
 	}
+
+	return
 }
