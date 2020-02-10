@@ -29,40 +29,15 @@ const SEED = 0x13
 
 // helper that constructs a valid credential chain of L levels with n attributes per level
 func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
-	const YsNum = 10
-
-	prg := getNewRand(SEED)
-
-	// Level-0 creds
-	sk, pk = GenerateKeys(prg, 0)
-	creds = MakeCredentials(pk)
-
-	ys = make([][]interface{}, 2)
-	ys[0] = GenerateYs(false, YsNum, prg)
-	ys[1] = GenerateYs(true, YsNum, prg)
-	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
-	// little hack to generate h in different group
-	if L < 0 {
-		h = FP256BN.ECP2_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
-		L = -L
+	absL := L
+	if absL < 0 {
+		absL = -absL
 	}
-
-	for index := 1; index <= L; index++ {
-		// Level-index creds
-		ski, pki := GenerateKeys(prg, index)
-		var ai []interface{}
-		for j := 0; j < n; j++ {
-			ai = append(ai, ProduceAttributes(index, "attribute-"+strconv.Itoa(index)+"-"+strconv.Itoa(j))...)
-		}
-		if e = creds.Delegate(sk, pki, ai, prg, ys); e != nil {
-			return
-		}
-		sk = ski
+	ns := make([]int, absL+1)
+	for i := 1; i <= absL; i++ {
+		ns[i] = n
 	}
-
-	skNym, pkNym = GenerateNymKeys(prg, sk, h)
-
-	return
+	return generateCustomChain(L, ns)
 }
 
 // helper that constructs the chain, generates the proof and verifies
@@ -107,6 +82,43 @@ func marshal(L int, n int, attributes AttributesCase) (marshaled []byte) {
 	proof, _ := creds.Prove(prg, sk, pk, disclosed, []byte("message"), ys, h, skNym)
 
 	return proof.ToBytes()
+}
+
+func generateCustomChain(L int, n []int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
+	const YsNum = 10
+
+	prg := getNewRand(SEED)
+
+	// Level-0 creds
+	sk, pk = GenerateKeys(prg, 0)
+	creds = MakeCredentials(pk)
+
+	ys = make([][]interface{}, 2)
+	ys[0] = GenerateYs(false, YsNum, prg)
+	ys[1] = GenerateYs(true, YsNum, prg)
+	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	// little hack to generate h in different group
+	if L < 0 {
+		h = FP256BN.ECP2_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+		L = -L
+	}
+
+	for index := 1; index <= L; index++ {
+		// Level-index creds
+		ski, pki := GenerateKeys(prg, index)
+		var ai []interface{}
+		for j := 0; j < n[index]; j++ {
+			ai = append(ai, ProduceAttributes(index, "attribute-"+strconv.Itoa(index)+"-"+strconv.Itoa(j))...)
+		}
+		if e = creds.Delegate(sk, pki, ai, prg, ys); e != nil {
+			return
+		}
+		sk = ski
+	}
+
+	skNym, pkNym = GenerateNymKeys(prg, sk, h)
+
+	return
 }
 
 // Tests
@@ -1007,6 +1019,52 @@ func BenchmarkSchemeAgainsRust(b *testing.B) {
 			proof.VerifyProof(pk, ys, h, pkNym, []Index{}, []byte("Message"))
 		}
 	})
+}
+
+func BenchmarkSchemeAgainsOriginalPaper(b *testing.B) {
+
+	prg := getNewRand(SEED + 1)
+	const L = 2
+
+	for _, prove := range []bool{true, false} {
+		b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
+			for _, combination := range [][]int{
+				{0, 0},
+				{1, 0},
+				{2, 0},
+				{3, 0},
+				{4, 0},
+				{0, 1},
+				{0, 2},
+				{0, 3},
+				{0, 4},
+				{1, 1},
+				{2, 1},
+			} {
+				n1 := combination[0]
+				n2 := combination[1]
+				b.Run(fmt.Sprintf("n1=%d n2=%d", n1, n2), func(b *testing.B) {
+
+					creds, sk, pk, ys, skNym, pkNym, h, _ := generateCustomChain(L, []int{0, n1, n2})
+
+					m := []byte("Message")
+					if prove {
+						for n := 0; n < b.N; n++ {
+							if _, e := creds.Prove(prg, sk, pk, Indices{}, m, ys, h, skNym); e != nil {
+								panic(e)
+							}
+						}
+					} else {
+						proof, _ := creds.Prove(prg, sk, pk, Indices{}, m, ys, h, skNym)
+
+						for n := 0; n < b.N; n++ {
+							proof.VerifyProof(pk, ys, h, pkNym, Indices{}, m)
+						}
+					}
+				})
+			}
+		})
+	}
 }
 
 // Helpers
