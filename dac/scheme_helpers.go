@@ -10,7 +10,12 @@ import (
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 )
 
-var _Workers uint = 0
+// Workers specify the number of worker threads to use for parallel computations
+// 0 will spawn as many workers as there are tasks
+// 1 is equivalent to sequential execution
+// 2+ workers will distribute the work among specified number of threads
+var Workers uint = 0
+
 var _OptimizeTate = true
 
 type proofMarshal struct {
@@ -310,7 +315,7 @@ func (eComputer *eProductComputer) enqueue(i int, j int, arguments ...*eArg) {
 }
 
 func (eComputer *eProductComputer) compute() (results [][]*FP256BN.FP12, e error) {
-	workers := int(_Workers)
+	workers := int(Workers)
 	if workers < 1 {
 		workers = len(eComputer.queue)
 	}

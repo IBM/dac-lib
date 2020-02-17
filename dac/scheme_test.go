@@ -801,9 +801,9 @@ func TestSchemeOptimizations(t *testing.T) {
 		for _, tate := range []bool{true, false} {
 			t.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(t *testing.T) {
 				if parallel {
-					_Workers = 3
+					Workers = 3
 				} else {
-					_Workers = 1
+					Workers = 1
 				}
 				_OptimizeTate = tate
 
@@ -820,7 +820,7 @@ func TestSchemeWorkersVary(t *testing.T) {
 
 	for workers := 0; workers < 15; workers++ {
 		t.Run(fmt.Sprintf("workers=%d", workers), func(t *testing.T) {
-			_Workers = uint(workers)
+			Workers = uint(workers)
 
 			result := verifyProof(prg, 2, Indices{})
 			assert.Check(t, result)
@@ -988,9 +988,9 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 						for _, tate := range []bool{true, false} {
 							b.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(b *testing.B) {
 								if parallel {
-									_Workers = 3
+									Workers = 3
 								} else {
-									_Workers = 1
+									Workers = 1
 								}
 								_OptimizeTate = tate
 
@@ -1034,7 +1034,7 @@ func BenchmarkSchemeWorkersVary(b *testing.B) {
 					for workers := 0; workers <= 5; workers++ {
 
 						b.Run(fmt.Sprintf("workers=%d", workers*2), func(b *testing.B) {
-							_Workers = uint(workers * 2)
+							Workers = uint(workers * 2)
 
 							creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(tc.L, tc.n)
 
