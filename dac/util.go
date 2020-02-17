@@ -194,7 +194,8 @@ func ate2(g interface{}, h interface{}, k interface{}, l interface{}) *FP256BN.F
 
 // To and from bytes
 
-func pointToBytes(g interface{}) (result []byte) {
+// PointToBytes converts ECP or ECP2 to byte array
+func PointToBytes(g interface{}) (result []byte) {
 
 	if g == nil {
 		return
@@ -226,7 +227,8 @@ func bigToBytes(p *FP256BN.BIG) (result []byte) {
 	return
 }
 
-func pointFromBytes(bytes []byte) (g interface{}, e error) {
+// PointFromBytes converts a byte array to ECP or ECP2
+func PointFromBytes(bytes []byte) (g interface{}, e error) {
 	if len(bytes) == 0 {
 		return
 	}
@@ -344,6 +346,16 @@ func sha3(q *FP256BN.BIG, raw []byte) (result *FP256BN.BIG) {
 	sha3.Hash(hash[:])
 	result = FP256BN.FromBytes(hash[:])
 	result.Mod(q)
+
+	return
+}
+
+func generatorSameGroup(a interface{}) (g interface{}) {
+	if _, first := a.(*FP256BN.ECP); first {
+		g = FP256BN.ECP_generator()
+	} else {
+		g = FP256BN.ECP2_generator()
+	}
 
 	return
 }

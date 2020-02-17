@@ -15,7 +15,8 @@ type Siblings struct {
 // PK abstraction over public key
 type PK = interface{}
 
-func pkEqual(first PK, second PK) bool {
+// PkEqual checks if two public keys are equal
+func PkEqual(first PK, second PK) bool {
 	return pointEqual(first, second)
 }
 
@@ -72,5 +73,5 @@ func VerifyKeyPair(sk SK, pk PK) bool {
 	} else {
 		target = &(*FP256BN.ECP2_generator().Mul(sk))
 	}
-	return pkEqual(pk, target)
+	return PkEqual(pk, target)
 }

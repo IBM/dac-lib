@@ -11,7 +11,7 @@ import (
 
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dustin/go-humanize"
@@ -28,13 +28,66 @@ const (
 const SEED = 0x13
 
 // helper that constructs a valid credential chain of L levels with n attributes per level
-func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h *FP256BN.ECP, e error) {
+func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
+	absL := L
+	if absL < 0 {
+		absL = -absL
+	}
+	ns := make([]int, absL+1)
+	for i := 1; i <= absL; i++ {
+		ns[i] = n
+	}
+	return generateCustomChain(L, ns)
+}
+
+// helper that constructs the chain, generates the proof and verifies
+// for given L levels with D disclosed attributes
+func verifyProof(prg *amcl.RAND, L int, D Indices) (result bool) {
+
+	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(L, 2)
+
+	for i := 0; i < len(D); i++ {
+		D[i].Attribute = creds.Attributes[D[i].I][D[i].J]
+	}
+
+	m := []byte("Message")
+
+	proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
+
+	return proof.VerifyProof(pk, ys, h, pkNym, D, m) == nil
+}
+
+// helper that generates a chain, generates a proof and marshals it
+func marshal(L int, n int, attributes AttributesCase) (marshaled []byte) {
+	prg := getNewRand(SEED + 1)
+
+	creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, n)
+
+	var disclosed Indices
+	switch attributes {
+	case All:
+		for i := 1; i <= L; i++ {
+			for j := 0; j < n; j++ {
+				disclosed = append(disclosed, Index{i, j, creds.Attributes[i][j]})
+			}
+		}
+	case None:
+		disclosed = make(Indices, 0)
+	case One:
+		if n > 0 {
+			disclosed = []Index{{1, 0, creds.Attributes[1][0]}}
+		}
+	}
+
+	proof, _ := creds.Prove(prg, sk, pk, disclosed, []byte("message"), ys, h, skNym)
+
+	return proof.ToBytes()
+}
+
+func generateCustomChain(L int, n []int) (creds *Credentials, sk SK, pk PK, ys [][]interface{}, skNym SK, pkNym PK, h interface{}, e error) {
 	const YsNum = 10
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	// Level-0 creds
 	sk, pk = GenerateKeys(prg, 0)
@@ -44,12 +97,17 @@ func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]inter
 	ys[0] = GenerateYs(false, YsNum, prg)
 	ys[1] = GenerateYs(true, YsNum, prg)
 	h = FP256BN.ECP_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+	// little hack to generate h in different group
+	if L < 0 {
+		h = FP256BN.ECP2_generator().Mul(FP256BN.Randomnum(FP256BN.NewBIGints(FP256BN.CURVE_Order), prg))
+		L = -L
+	}
 
 	for index := 1; index <= L; index++ {
 		// Level-index creds
 		ski, pki := GenerateKeys(prg, index)
 		var ai []interface{}
-		for j := 0; j < n; j++ {
+		for j := 0; j < n[index]; j++ {
 			ai = append(ai, ProduceAttributes(index, "attribute-"+strconv.Itoa(index)+"-"+strconv.Itoa(j))...)
 		}
 		if e = creds.Delegate(sk, pki, ai, prg, ys); e != nil {
@@ -63,53 +121,6 @@ func generateChain(L int, n int) (creds *Credentials, sk SK, pk PK, ys [][]inter
 	return
 }
 
-// helper that constructs the chain, generates the proof and verifies
-// for given L levels with D disclosed attributes
-func verifyProof(prg *amcl.RAND, L int, D Indices) (result bool) {
-
-	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(L, 2)
-
-	for i := 0; i < len(D); i++ {
-		D[i].attribute = creds.attributes[D[i].i][D[i].j]
-	}
-
-	m := []byte("Message")
-
-	proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
-
-	return proof.VerifyProof(pk, ys, h, pkNym, D, m) == nil
-}
-
-// helper that generates a chain, generates a proof and marshals it
-func marshal(L int, n int, attributes AttributesCase) (marshaled []byte) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
-
-	creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, n)
-
-	var disclosed Indices
-	switch attributes {
-	case All:
-		for i := 1; i <= L; i++ {
-			for j := 0; j < n; j++ {
-				disclosed = append(disclosed, Index{i, j, creds.attributes[i][j]})
-			}
-		}
-	case None:
-		disclosed = make(Indices, 0)
-	case One:
-		if n > 0 {
-			disclosed = []Index{{1, 0, creds.attributes[1][0]}}
-		}
-	}
-
-	proof, _ := creds.Prove(prg, sk, pk, disclosed, []byte("message"), ys, h, skNym)
-
-	return proof.ToBytes()
-}
-
 // Tests
 
 func TestHappyPath(t *testing.T) {
@@ -117,9 +128,7 @@ func TestHappyPath(t *testing.T) {
 	const YsNum = 10
 	const n = 2
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	ys := make([][]interface{}, 2)
 	ys[0] = GenerateYs(false, YsNum, prg)
@@ -151,7 +160,7 @@ func TestHappyPath(t *testing.T) {
 	/// un-marshaling
 	credReqIDecoded := CredRequestFromBytes(credReqIBytes)
 	assert.Check(t, credReqIDecoded.equal(credReqI))
-	assert.Check(t, pkEqual(credReqIDecoded.Pk, pki))
+	assert.Check(t, PkEqual(credReqIDecoded.Pk, pki))
 
 	/// validating
 	credReqIValid := credReqIDecoded.Validate()
@@ -200,7 +209,7 @@ func TestHappyPath(t *testing.T) {
 	/// un-marshaling
 	credReqUDecoded := CredRequestFromBytes(credReqUBytes)
 	assert.Check(t, credReqUDecoded.equal(credReqU))
-	assert.Check(t, pkEqual(credReqUDecoded.Pk, pku))
+	assert.Check(t, PkEqual(credReqUDecoded.Pk, pku))
 
 	/// validating
 	credReqUValid := credReqUDecoded.Validate()
@@ -244,7 +253,7 @@ func TestHappyPath(t *testing.T) {
 	var message []byte
 	message = append(message, txBody...)
 	message = append(message, proofBytes...)
-	message = append(message, pointToBytes(pkNym)...)
+	message = append(message, PointToBytes(pkNym)...)
 
 	signature := SignNym(prg, pkNym, skNym, sku, h, message)
 
@@ -337,35 +346,28 @@ func TestSchemeVerifyTamperedCreds(t *testing.T) {
 // prove method does not crash
 func TestSchemeProveNoCrash(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	_, e := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	_, e := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 	assert.NilError(t, e)
 }
 
 // same PRG yields same proof
 func TestSchemeProveDeterministic(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg = getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
-	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	assert.Check(t, proof1.Equals(proof2))
 }
@@ -373,18 +375,15 @@ func TestSchemeProveDeterministic(t *testing.T) {
 // different PRG yields different proof
 func TestSchemeProveRandomized(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof1, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	creds, sk, pk, ys, skNym, _, h, _ = generateChain(3, 2)
 
-	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+	proof2, _ := creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 
 	assert.Check(t, !proof1.Equals(proof2))
 }
@@ -392,14 +391,11 @@ func TestSchemeProveRandomized(t *testing.T) {
 // verifyProof method does not crash
 func TestSchemeVerifyProofNoCrash(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(3, 2)
 
-	D := []Index{{1, 1, creds.attributes[1][1]}}
+	D := []Index{{1, 1, creds.Attributes[1][1]}}
 	m := []byte("Message")
 
 	proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
@@ -410,11 +406,8 @@ func TestSchemeVerifyProofNoCrash(t *testing.T) {
 // verifyProof accepts valid proof
 func TestSchemeVerifyProofCorrect(t *testing.T) {
 
-	prg := amcl.NewRAND()
-
 	for _, L := range []int{1, 2, 3, 5, 10} {
-		prg.Clean()
-		prg.Seed(1, []byte{SEED + 1})
+		prg := getNewRand(SEED + 1)
 
 		t.Run(fmt.Sprintf("L=%d", L), func(t *testing.T) {
 
@@ -425,8 +418,7 @@ func TestSchemeVerifyProofCorrect(t *testing.T) {
 	}
 
 	for _, disclosed := range []int{1, 2, 3, 4, 5} {
-		prg.Clean()
-		prg.Seed(1, []byte{SEED + 1})
+		prg := getNewRand(SEED + 1)
 
 		t.Run(fmt.Sprintf("disclosed level=%d", disclosed), func(t *testing.T) {
 			result := verifyProof(prg, 5, []Index{{disclosed, 1, nil}})
@@ -434,6 +426,8 @@ func TestSchemeVerifyProofCorrect(t *testing.T) {
 			assert.Check(t, result)
 		})
 	}
+
+	prg := getNewRand(SEED)
 
 	t.Run("all disclosed", func(t *testing.T) {
 		var disclosed Indices
@@ -481,10 +475,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 		return a.(*FP256BN.ECP2).Mul(FP256BN.NewBIGint(0x13))
 	}
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, l := range []int{1, 2, 3} {
 		t.Run(fmt.Sprintf("l=%d", l), func(t *testing.T) {
@@ -501,7 +492,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 
 					creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(3, 2)
 
-					D := []Index{{1, 1, creds.attributes[1][1]}}
+					D := []Index{{1, 1, creds.Attributes[1][1]}}
 					m := []byte("Message")
 
 					proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
@@ -526,7 +517,7 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 					case WrongResNym:
 						proof.resNym = &*FP256BN.NewBIGint(0x13)
 					case WrongAttribute:
-						D[0].attribute = tamper(D[0].attribute)
+						D[0].Attribute = tamper(D[0].Attribute)
 					case WrongY:
 						ys[l%2][0] = tamper(ys[l%2][0])
 					}
@@ -542,15 +533,13 @@ func TestSchemeVerifyProofTampered(t *testing.T) {
 // checks proof marshalling functionality
 func TestSchemeProofMarshal(t *testing.T) {
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	t.Run("toBytes no crash", func(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		proof.ToBytes()
 
@@ -560,7 +549,7 @@ func TestSchemeProofMarshal(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		bytes := proof.ToBytes()
 
@@ -572,7 +561,7 @@ func TestSchemeProofMarshal(t *testing.T) {
 
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.attributes[1][1]}}, []byte("message"), ys, h, skNym)
+		proof, _ := creds.Prove(prg, sk, pk, Indices{{1, 1, creds.Attributes[1][1]}}, []byte("message"), ys, h, skNym)
 
 		decoded := ProofFromBytes(proof.ToBytes())
 
@@ -598,9 +587,7 @@ func TestSchemeMarshalSizes(t *testing.T) {
 // arguments that would have caused the whole program crash
 func TestSchemeUserErrors(t *testing.T) {
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	t.Run("delegate", func(t *testing.T) {
 		// Level-0 creds
@@ -659,7 +646,7 @@ func TestSchemeUserErrors(t *testing.T) {
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
 		// here we damage the attributes in credentials
-		creds.attributes = nil
+		creds.Attributes = nil
 
 		_, e := creds.Prove(prg, sk, pk, Indices{}, []byte("Hello"), ys, h, skNym)
 
@@ -711,21 +698,17 @@ func TestSchemeProofEquality(t *testing.T) {
 
 	for _, tc := range []TestCase{WrongC, WrongRPrime, WrongResA, WrongResT, WrongResS, WrongResCpk, WrongResCsk, WrongResNym, Correct} {
 
-		prg := amcl.NewRAND()
-
 		t.Run(string(tc), func(t *testing.T) {
 
 			creds, sk, pk, ys, skNym, _, h, _ := generateChain(3, 2)
 
-			D := []Index{{1, 1, creds.attributes[1][1]}}
+			D := []Index{{1, 1, creds.Attributes[1][1]}}
 			m := []byte("Message")
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg := getNewRand(SEED + 2)
 			proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg = getNewRand(SEED + 2)
 			proofDuplicate, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
 
 			assert.Check(t, proof.Equals(proofDuplicate))
@@ -794,7 +777,7 @@ func TestSchemeCredentialsEquality(t *testing.T) {
 			case WrongPK:
 				creds.publicKeys[1] = tamper(creds.publicKeys[1])
 			case WrongAttribute:
-				creds.attributes[1][1] = tamper(creds.attributes[1][1])
+				creds.Attributes[1][1] = tamper(creds.Attributes[1][1])
 			case WrongSignature:
 				creds.signatures[1].r = tamper(creds.signatures[1].r)
 			case WrongSignatureLength:
@@ -810,16 +793,18 @@ func TestSchemeCredentialsEquality(t *testing.T) {
 	}
 }
 
-// make sure the scheme work for any combintation of enabled optimizations
+// make sure the scheme works for any combintation of enabled optimizations
 func TestSchemeOptimizations(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, parallel := range []bool{true, false} {
 		for _, tate := range []bool{true, false} {
 			t.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(t *testing.T) {
-				_ParallelOptimization = parallel
+				if parallel {
+					Workers = 3
+				} else {
+					Workers = 1
+				}
 				_OptimizeTate = tate
 
 				result := verifyProof(prg, 3, Indices{})
@@ -827,6 +812,57 @@ func TestSchemeOptimizations(t *testing.T) {
 			})
 		}
 	}
+}
+
+// make sure the scheme works for different numbers of workers
+func TestSchemeWorkersVary(t *testing.T) {
+	prg := getNewRand(SEED + 1)
+
+	for workers := 0; workers < 15; workers++ {
+		t.Run(fmt.Sprintf("workers=%d", workers), func(t *testing.T) {
+			Workers = uint(workers)
+
+			result := verifyProof(prg, 2, Indices{})
+			assert.Check(t, result)
+		})
+	}
+}
+
+// make sure h in g2 works fine
+func TestSchemeHInGTwo(t *testing.T) {
+
+	for _, L := range []int{1, 2, 3, 5, 10} {
+		prg := getNewRand(SEED + 1)
+
+		t.Run(fmt.Sprintf("L=%d", L), func(t *testing.T) {
+
+			result := verifyProof(prg, -L, []Index{{1, 1, nil}})
+
+			assert.Check(t, result)
+		})
+	}
+}
+
+// un-marshaling failure properly reported (panic)
+func TestSchemeCredentialsUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	CredentialsFromBytes([]byte{0x13})
+}
+
+// un-marshaling failure properly reported (panic)
+func TestSchemeProofUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	ProofFromBytes([]byte{0x13})
 }
 
 // Benchmarks
@@ -854,16 +890,13 @@ func BenchmarkSchemeVerify(b *testing.B) {
 
 func BenchmarkSchemeProve(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, L := range []int{1, 2, 3, 5, 10} {
 		b.Run(fmt.Sprintf("L=%d", L), func(b *testing.B) {
 			creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, 2)
 			for n := 0; n < b.N; n++ {
-				creds.Prove(prg, sk, pk, []Index{{1, 1, creds.attributes[1][1]}}, []byte("Message"), ys, h, skNym)
+				creds.Prove(prg, sk, pk, []Index{{1, 1, creds.Attributes[1][1]}}, []byte("Message"), ys, h, skNym)
 			}
 		})
 	}
@@ -871,10 +904,7 @@ func BenchmarkSchemeProve(b *testing.B) {
 
 func BenchmarkSchemeVerifyProof(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, L := range []int{1, 2, 3, 5, 10} {
 		b.Run(fmt.Sprintf("L=%d", L), func(b *testing.B) {
@@ -912,10 +942,7 @@ func BenchmarkSchemeVerifyProof(b *testing.B) {
 
 func BenchmarkSchemeForPaper(b *testing.B) {
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	for _, prove := range []bool{true, false} {
 		b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
@@ -953,16 +980,18 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 	}{{2, 2}, {5, 3}} {
 		b.Run(fmt.Sprintf("L=%d n=%d", tc.L, tc.n), func(b *testing.B) {
 
-			prg := amcl.NewRAND()
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 1})
+			prg := getNewRand(SEED + 1)
 
 			for _, prove := range []bool{true, false} {
 				b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
 					for _, parallel := range []bool{true, false} {
 						for _, tate := range []bool{true, false} {
 							b.Run(fmt.Sprintf("parallel=%t tate=%t", parallel, tate), func(b *testing.B) {
-								_ParallelOptimization = parallel
+								if parallel {
+									Workers = 3
+								} else {
+									Workers = 1
+								}
 								_OptimizeTate = tate
 
 								creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(tc.L, tc.n)
@@ -990,15 +1019,57 @@ func BenchmarkSchemeOptimizations(b *testing.B) {
 	}
 }
 
+func BenchmarkSchemeWorkersVary(b *testing.B) {
+
+	for _, tc := range []struct {
+		L int
+		n int
+	}{{1, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}} {
+		b.Run(fmt.Sprintf("L=%d n=%d", tc.L, tc.n), func(b *testing.B) {
+
+			prg := getNewRand(SEED + 1)
+
+			for _, prove := range []bool{true, false} {
+				b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
+					for workers := 0; workers <= 5; workers++ {
+
+						b.Run(fmt.Sprintf("workers=%d", workers*2), func(b *testing.B) {
+							Workers = uint(workers * 2)
+
+							creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(tc.L, tc.n)
+
+							m := []byte("Message")
+							D := []Index{}
+
+							if prove {
+								for n := 0; n < b.N; n++ {
+									if _, e := creds.Prove(prg, sk, pk, D, m, ys, h, skNym); e != nil {
+										panic(e)
+									}
+								}
+							} else {
+								proof, _ := creds.Prove(prg, sk, pk, D, m, ys, h, skNym)
+
+								for n := 0; n < b.N; n++ {
+									if e := proof.VerifyProof(pk, ys, h, pkNym, D, m); e != nil {
+										panic(e)
+									}
+								}
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkSchemeAgainsRust(b *testing.B) {
 
 	const L = 5
 	const n = 1
 
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 1})
+	prg := getNewRand(SEED + 1)
 
 	b.Run(fmt.Sprintf("Prove L=%d n=%d", L, n), func(b *testing.B) {
 		creds, sk, pk, ys, skNym, _, h, _ := generateChain(L, n)
@@ -1015,6 +1086,53 @@ func BenchmarkSchemeAgainsRust(b *testing.B) {
 			proof.VerifyProof(pk, ys, h, pkNym, []Index{}, []byte("Message"))
 		}
 	})
+}
+
+func BenchmarkSchemeAgainsOriginalPaper(b *testing.B) {
+
+	prg := getNewRand(SEED + 1)
+	const L = 2
+
+	for _, prove := range []bool{true, false} {
+		b.Run(map[bool]string{true: "Prove", false: "Verify"}[prove], func(b *testing.B) {
+			for _, c := range []struct {
+				n1 int
+				n2 int
+			}{
+				{0, 0},
+				{1, 0},
+				{2, 0},
+				{3, 0},
+				{4, 0},
+				{0, 1},
+				{0, 2},
+				{0, 3},
+				{0, 4},
+				{1, 1},
+				{2, 1},
+			} {
+				b.Run(fmt.Sprintf("n1=%d n2=%d", c.n1, c.n2), func(b *testing.B) {
+
+					creds, sk, pk, ys, skNym, pkNym, h, _ := generateCustomChain(L, []int{0, c.n1, c.n2})
+
+					m := []byte("Message")
+					if prove {
+						for n := 0; n < b.N; n++ {
+							if _, e := creds.Prove(prg, sk, pk, Indices{}, m, ys, h, skNym); e != nil {
+								panic(e)
+							}
+						}
+					} else {
+						proof, _ := creds.Prove(prg, sk, pk, Indices{}, m, ys, h, skNym)
+
+						for n := 0; n < b.N; n++ {
+							proof.VerifyProof(pk, ys, h, pkNym, Indices{}, m)
+						}
+					}
+				})
+			}
+		})
+	}
 }
 
 // Helpers

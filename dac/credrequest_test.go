@@ -5,9 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var L int
@@ -31,6 +30,7 @@ func TestCredRequest(t *testing.T) {
 				testCredRequestValidateCorrect,
 				testCredRequestValidateTampered,
 				testCredRequestMarshaling,
+				testCredRequestUnMarshalingFail,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -40,8 +40,7 @@ func TestCredRequest(t *testing.T) {
 
 // MakeCredRequest does not crash
 func testCredRequestMakeNoCrash(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 	MakeCredRequest(prg, sk, credRequestNonce, L)
@@ -49,17 +48,14 @@ func testCredRequestMakeNoCrash(t *testing.T) {
 
 // credential request deterministic for the same PRG
 func testCredRequestMakeDeterministic(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 2})
+	prg = getNewRand(SEED + 2)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED + 2})
+	prg = getNewRand(SEED + 2)
 	credReqOther := MakeCredRequest(prg, sk, credRequestNonce, L)
 
 	assert.Check(t, credReq.equal(credReqOther))
@@ -67,8 +63,7 @@ func testCredRequestMakeDeterministic(t *testing.T) {
 
 // credential request randomized for the different PRG
 func testCredRequestMakeRandomized(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 
@@ -93,19 +88,16 @@ func testCredRequestEquality(t *testing.T) {
 
 	for _, tc := range []TestCase{Correct, WrongNonce, WrongNonceLength, WrongResR, WrongResT, WrongPK} {
 
-		prg := amcl.NewRAND()
-		prg.Seed(1, []byte{SEED + 3})
+		prg := getNewRand(SEED + 3)
 
 		t.Run(string(tc), func(t *testing.T) {
 
 			sk, _ := GenerateKeys(prg, L)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg := getNewRand(SEED + 2)
 			credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED + 2})
+			prg = getNewRand(SEED + 2)
 			credReqOther := MakeCredRequest(prg, sk, credRequestNonce, L)
 
 			assert.Check(t, credReq.equal(credReqOther))
@@ -134,8 +126,7 @@ func testCredRequestEquality(t *testing.T) {
 
 // validation does not crash
 func testCredRequestValidateNoCrash(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
@@ -145,8 +136,7 @@ func testCredRequestValidateNoCrash(t *testing.T) {
 
 // validation accept legitimate request
 func testCredRequestValidateCorrect(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
@@ -169,8 +159,7 @@ func testCredRequestValidateTampered(t *testing.T) {
 
 	for _, tc := range []TestCase{WrongNonce, WrongResR, WrongResT, WrongPK} {
 
-		prg := amcl.NewRAND()
-		prg.Seed(1, []byte{SEED + 3})
+		prg := getNewRand(SEED + 3)
 
 		t.Run(string(tc), func(t *testing.T) {
 
@@ -195,8 +184,7 @@ func testCredRequestValidateTampered(t *testing.T) {
 
 // marshaling and un-marshaling yields the original object
 func testCredRequestMarshaling(t *testing.T) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)
@@ -206,6 +194,17 @@ func testCredRequestMarshaling(t *testing.T) {
 	recovered := CredRequestFromBytes(marshal)
 
 	assert.Check(t, credReq.equal(recovered))
+}
+
+// un-marshaling failure properly reported (panic)
+func testCredRequestUnMarshalingFail(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	CredRequestFromBytes([]byte{0x13})
 }
 
 // Benchmarks
@@ -226,8 +225,7 @@ func BenchmarkCredRequest(b *testing.B) {
 }
 
 func benchmarkCredRequestMake(b *testing.B) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 
@@ -237,8 +235,7 @@ func benchmarkCredRequestMake(b *testing.B) {
 }
 
 func benchmarkCredRequestValidate(b *testing.B) {
-	prg := amcl.NewRAND()
-	prg.Seed(1, []byte{SEED + 3})
+	prg := getNewRand(SEED + 3)
 
 	sk, _ := GenerateKeys(prg, L)
 	credReq := MakeCredRequest(prg, sk, credRequestNonce, L)

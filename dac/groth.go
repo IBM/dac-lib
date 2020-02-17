@@ -1,6 +1,7 @@
 package dac
 
 import (
+	"encoding/asn1"
 	"fmt"
 	"sync"
 
@@ -204,5 +205,57 @@ func (groth *Groth) consistencyCheck(arg []interface{}) (e error) {
 	if len(arg) > len(groth.y) {
 		e = fmt.Errorf("wrong argument length supplied (%d), must at most %d", len(arg), len(groth.y))
 	}
+	return
+}
+
+// TODO test Groth marshalling
+
+type grothSignatureMarshal struct {
+	R  []byte
+	S  []byte
+	Ts [][]byte
+}
+
+func (marshal *grothSignatureMarshal) toGrothSignature() (signature *GrothSignature) {
+	signature = &GrothSignature{}
+
+	signature.r, _ = PointFromBytes(marshal.R)
+	signature.s, _ = PointFromBytes(marshal.S)
+	signature.ts = make([]interface{}, len(marshal.Ts))
+	for j := 0; j < len(marshal.Ts); j++ {
+		signature.ts[j], _ = PointFromBytes(marshal.Ts[j])
+	}
+
+	return
+}
+
+func (signature *GrothSignature) toMarshal() (marshal *grothSignatureMarshal) {
+	marshal = &grothSignatureMarshal{}
+
+	marshal.R = PointToBytes(signature.r)
+	marshal.S = PointToBytes(signature.s)
+	marshal.Ts = make([][]byte, len(signature.ts))
+	for j := 0; j < len(signature.ts); j++ {
+		marshal.Ts[j] = PointToBytes(signature.ts[j])
+	}
+
+	return
+}
+
+// GrothSignatureFromBytes marshals the Groth signature object using ASN1 encoding
+func GrothSignatureFromBytes(input []byte) (signature *GrothSignature) {
+	var marshal grothSignatureMarshal
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling groth signature failed")
+	}
+	signature = marshal.toGrothSignature()
+
+	return
+}
+
+// ToBytes un-marshals the Groth signature object using ASN1 encoding
+func (signature *GrothSignature) ToBytes() (result []byte) {
+	result, _ = asn1.Marshal(*signature.toMarshal())
+
 	return
 }

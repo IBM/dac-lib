@@ -5,18 +5,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dbogatov/fabric-amcl/amcl"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var siblings *Siblings
 
 // common setup routine for the tests in this file
 func setupSiblings(first bool) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	siblings = MakeSiblings(prg, first, GenerateYs(first, 3, prg))
 

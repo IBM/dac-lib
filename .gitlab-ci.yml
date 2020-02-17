@@ -1,0 +1,48 @@
+stages:
+  - test
+
+go-vet:
+  image: dbogatov/docker-sources:golang-1.13-alpine
+  stage: test
+  script:
+    - go vet ./dac/
+  tags:
+    - docker
+
+tests:
+  image: dbogatov/docker-sources:golang-1.13-alpine
+  stage: test
+  before_script:
+    - go get -u github.com/jstemmer/go-junit-report
+  script:
+    - go test ./dac/ -v -timeout 30m -covermode=count -coverprofile=coverage.out 2>&1 | tee /dev/stderr | go-junit-report > report.xml
+    - go tool cover -html=coverage.out -o coverage.html
+  artifacts:
+    reports:
+      junit: report.xml
+    paths:
+      - coverage.html
+  tags:
+    - docker
+
+include:
+  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
+  # - template: Code-Quality.gitlab-ci.yml
+
+
+sast:
+  variables:
+    SAST_DISABLE_DIND: "true"
+  tags:
+    - docker
+
+dependency_scanning:
+  variables:
+    DS_DISABLE_DIND: "true"
+  tags:
+    - docker
+
+# code_quality:
+#   tags:
+#     - docker

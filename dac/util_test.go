@@ -2,14 +2,25 @@ package dac
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
 )
+
+func getNewRand(seed byte) (prg *amcl.RAND) {
+	prg = amcl.NewRAND()
+
+	prg.Clean()
+	prg.Seed(1, []byte{seed})
+
+	return
+}
 
 // verify certain assumptions on how AMCL works
 func TestAMCLAssumptions(t *testing.T) {
@@ -21,10 +32,7 @@ func TestAMCLAssumptions(t *testing.T) {
 			g2 := FP256BN.ECP2_generator()
 			q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
 
-			prg := amcl.NewRAND()
-
-			prg.Clean()
-			prg.Seed(1, []byte{byte(index)})
+			prg := getNewRand(byte(index))
 
 			rand := func(first bool) interface{} {
 				a := FP256BN.Randomnum(q, prg)
@@ -301,13 +309,9 @@ func TestElementaryProofs(t *testing.T) {
 	g2 := FP256BN.ECP2_generator()
 	g2Neg := pointNegate(g2).(*FP256BN.ECP2)
 
-	prg := amcl.NewRAND()
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
-	prgGroth := amcl.NewRAND()
-	prgGroth.Clean()
-	prgGroth.Seed(1, []byte{SEED + 1})
+	prgGroth := getNewRand(SEED + 1)
 
 	rand := func() *FP256BN.BIG { return FP256BN.Randomnum(q, prg) }
 	tate := func(a *FP256BN.ECP, b *FP256BN.ECP2) *FP256BN.FP12 { return FP256BN.Ate(b, a) }
@@ -413,8 +417,8 @@ func TestMiscellaneous(t *testing.T) {
 		assert.Check(t, bigEqual(r, FP256BN.NewBIGint(1)))
 	})
 
-	t.Run("pointFromBytes", func(t *testing.T) {
-		_, e := pointFromBytes(make([]byte, (_ECPByteLength+_ECP2ByteLength)/2))
+	t.Run("PointFromBytes", func(t *testing.T) {
+		_, e := PointFromBytes(make([]byte, (_ECPByteLength+_ECP2ByteLength)/2))
 		assert.ErrorContains(t, e, "length")
 	})
 
@@ -438,4 +442,98 @@ func TestMiscellaneous(t *testing.T) {
 			})
 		}
 	})
+}
+
+// if print set, prints out the byte representation of crypto objects
+// suitable for directly copy-pasting into Go code
+func TestPrintObjectsDeclarations(t *testing.T) {
+
+	const print = false
+	const messageLen = 1000
+
+	var message = make([]byte, messageLen)
+	for i := 0; i < messageLen; i++ {
+		message[i] = byte(i)
+	}
+
+	prg := getNewRand(SEED + 3)
+
+	var creds, sk, pk, ys, skNym, pkNym, h, _ = generateChain(2, 2)
+	var proof, _ = creds.Prove(prg, sk, pk, Indices{}, []byte(""), ys, h, skNym)
+	signature := SignNym(prg, pkNym, skNym, sk, h, message)
+
+	declare := func(name string, bytes []byte) string {
+		var sb strings.Builder
+
+		if !strings.Contains(name, "[") {
+			sb.WriteString("var ")
+		}
+		sb.WriteString(name)
+		sb.WriteString(" = []byte{")
+
+		for index, b := range bytes {
+			sb.WriteString(strconv.Itoa(int(b)))
+			if index != len(bytes)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString("}\n")
+
+		return sb.String()
+	}
+
+	if print {
+		fmt.Println(declare("messageBytes", message))
+		fmt.Println(declare("credsBytes", creds.ToBytes()))
+		fmt.Println(declare("skBytes", bigToBytes(sk)))
+		fmt.Println(declare("pkBytes", PointToBytes(pk)))
+		fmt.Println(declare("skNymBytes", bigToBytes(skNym)))
+		fmt.Println(declare("pkNymBytes", PointToBytes(pkNym)))
+		fmt.Println(declare("hBytes", PointToBytes(h)))
+
+		fmt.Println("var ysBytes = setYs()")
+
+		fmt.Println("func setYs() [][][]byte {")
+
+		fmt.Printf("ysTmp := make([][][]byte, %d)\n", len(ys))
+		for i := 0; i < 2; i++ {
+			fmt.Printf("ysTmp[%d] = make([][]byte, %d)\n", i, len(ys[i]))
+			for j := 0; j < len(ys[i]); j++ {
+				fmt.Println(declare(fmt.Sprintf("ysTmp[%d][%d]", i, j), PointToBytes(ys[i][j])))
+			}
+		}
+		fmt.Println("return ysTmp")
+		fmt.Println("}")
+
+		fmt.Println(declare("proofBytes", proof.ToBytes()))
+		fmt.Println(declare("signatureBytes", signature.ToBytes()))
+
+		fmt.Println(`
+var creds, sk, pk, ys, skNym, pkNym, h, proof, signature = recoverValues()
+
+func recoverValues() (*dac.Credentials, *FP256BN.BIG, interface{}, [][]interface{}, *FP256BN.BIG, interface{}, *FP256BN.ECP, *dac.Proof, *dac.NymSignature) {
+	pfb := func(bytes []byte) interface{} {
+		if len(bytes) == 1+2*32 {
+			return FP256BN.ECP_fromBytes(bytes)
+		}
+		return FP256BN.ECP2_fromBytes(bytes)
+	}
+
+	ysFromBytes := func(bytes [][][]byte) [][]interface{} {
+		ysTmp := make([][]interface{}, 2)
+		for i := 0; i < 2; i++ {
+			ysTmp[i] = make([]interface{}, len(bytes[i]))
+			for j := 0; j < len(bytes[i]); j++ {
+				ysTmp[i][j] = pfb(bytes[i][j])
+			}
+		}
+
+		return ysTmp
+	}
+
+	return dac.CredentialsFromBytes(credsBytes), FP256BN.FromBytes(skBytes), pfb(pkBytes), ysFromBytes(ysBytes), FP256BN.FromBytes(skNymBytes), pfb(pkNymBytes), pfb(hBytes).(*FP256BN.ECP), dac.ProofFromBytes(proofBytes), dac.NymSignatureFromBytes(signatureBytes)
+}
+		`)
+
+	}
 }

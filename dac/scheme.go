@@ -2,7 +2,6 @@ package dac
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
@@ -13,7 +12,7 @@ import (
 // Each link includes a signature, a set of attributes and a public key
 type Credentials struct {
 	signatures []GrothSignature
-	attributes [][]interface{}
+	Attributes [][]interface{}
 	publicKeys []PK
 }
 
@@ -41,10 +40,10 @@ func MakeCredentials(pk PK) (creds *Credentials) {
 	creds = &Credentials{}
 
 	creds.signatures = make([]GrothSignature, 0)
-	creds.attributes = make([][]interface{}, 0)
+	creds.Attributes = make([][]interface{}, 0)
 	creds.publicKeys = make([]PK, 0)
 
-	creds.attributes = append(creds.attributes, nil)
+	creds.Attributes = append(creds.Attributes, nil)
 	creds.signatures = append(creds.signatures, GrothSignature{})
 	creds.publicKeys = append(creds.publicKeys, pk)
 
@@ -80,7 +79,7 @@ func (creds *Credentials) Delegate(sk SK, publicKey PK, attributes []interface{}
 
 	sigma := siblings.SignGroth(sk, append([]interface{}{publicKey}, attributes...))
 
-	creds.attributes = append(creds.attributes, attributes)
+	creds.Attributes = append(creds.Attributes, attributes)
 	creds.signatures = append(creds.signatures, sigma)
 	creds.publicKeys = append(creds.publicKeys, publicKey)
 
@@ -102,7 +101,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 		return fmt.Errorf("empty credentials")
 	}
 
-	if !pkEqual(authorityPK, creds.publicKeys[0]) {
+	if !PkEqual(authorityPK, creds.publicKeys[0]) {
 		return fmt.Errorf("trusted authority's public key and credentials' top-level public key do not match")
 	}
 
@@ -111,7 +110,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 		levelResult := siblings.VerifyGroth(
 			creds.publicKeys[index-1],
 			creds.signatures[index],
-			append([]interface{}{creds.publicKeys[index]}, creds.attributes[index]...),
+			append([]interface{}{creds.publicKeys[index]}, creds.Attributes[index]...),
 		)
 		if levelResult != nil {
 			return fmt.Errorf("verification failed for L = %d", index)
@@ -133,7 +132,7 @@ func (creds *Credentials) Verify(sk SK, authorityPK PK, grothYs [][]interface{})
 // D is a set of disclosed attributes (with their 'coordinates' and values).
 // D can be empty, then no attributes will be disclosed.
 // h and skNym should be received with GenerateNymKeys.
-func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byte, grothYs [][]interface{}, h *FP256BN.ECP, skNym SK) (proof Proof, e error) {
+func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byte, grothYs [][]interface{}, h interface{}, skNym SK) (proof Proof, e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e = r.(error)
@@ -145,7 +144,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 
 	n := make([]int, L+1)
 	for i := 1; i <= L; i++ {
-		n[i] = len(creds.attributes[i])
+		n[i] = len(creds.Attributes[i])
 	}
 
 	rhoSigma := make([]*FP256BN.BIG, L+1)
@@ -199,9 +198,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		total += n[i] + 2
 	}
 
-	var wg sync.WaitGroup
-	communication := make(chan eResult, total)
-	wg.Add(total)
+	eComputer := makeEProductComputer(total)
 
 	// line 9 / 20
 	for i := 1; i <= L; i++ {
@@ -224,7 +221,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		if i != 1 {
 			e2com1 = &eArg{g1Neg, g2, rhoCpk[i-1]}
 		}
-		eProductParallel(&wg, i, n[i], communication, e1com1, e2com1)
+		eComputer.enqueue(i, n[i], e1com1, e2com1)
 
 		// line 11 / 22
 		rhoSigmaT := FP256BN.Modmul(rhoSigma[i], rhoT[i][0], q)
@@ -234,7 +231,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		if i != 1 {
 			e3com2 = &eArg{pointNegate(grothYs[i%2][0]), g2, rhoCpk[i-1]}
 		}
-		eProductParallel(&wg, i, n[i]+1, communication, e1com2, e2com2, e3com2)
+		eComputer.enqueue(i, n[i]+1, e1com2, e2com2, e3com2)
 
 		// line 12 / 23
 		for j := 0; j < n[i]; j++ {
@@ -253,21 +250,17 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 				// line 16 / 27
 				e3com = &eArg{g1, g2Neg, rhoA[i][j]}
 			}
-			eProductParallel(&wg, i, j, communication, e1com, e2com, e3com)
+			eComputer.enqueue(i, j, e1com, e2com, e3com)
 		}
 	}
 
-	wg.Wait()
-	close(communication)
-	for r := range communication {
-		if r.result == nil {
-			e = fmt.Errorf("error occurred in computing coms[%d][%d]", r.i, r.j)
-			return
-		}
-		coms[r.i][r.j] = r.result
+	coms, e = eComputer.compute()
+	if e != nil {
+		return
 	}
 
-	comNym := productOfExponents(FP256BN.ECP_generator(), rhoCpk[L], h, rhoNym)
+	g := generatorSameGroup(h)
+	comNym := productOfExponents(g, rhoCpk[L], h, rhoNym)
 
 	// line 31
 	proof.c = hashCommitments(grothYs, pk, proof.rPrime, coms, comNym, D, m, q)
@@ -312,7 +305,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 		for j := 0; j < n[i]; j++ {
 			if D.contains(i, j) == nil {
 				// line 38 / 47
-				proof.resA[i][j] = productOfExponents(g, rhoA[i][j], creds.attributes[i][j], proof.c)
+				proof.resA[i][j] = productOfExponents(g, rhoA[i][j], creds.Attributes[i][j], proof.c)
 			}
 		}
 	}
@@ -327,7 +320,7 @@ func (creds *Credentials) Prove(prg *amcl.RAND, sk SK, pk PK, D Indices, m []byt
 // h and pkNym should be received with GenerateNymKeys.
 // D is a set of disclosed attributes (with their 'coordinates' and values).
 // D has to exactly correspond to the one used in generation.
-func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, pkNym PK, D Indices, m []byte) (e error) {
+func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h interface{}, pkNym PK, D Indices, m []byte) (e error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e = r.(error)
@@ -349,9 +342,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 		coms[i] = make([]*FP256BN.FP12, n[i]+2)
 	}
 
-	var wg sync.WaitGroup
-	communication := make(chan eResult, total)
-	wg.Add(total)
+	eComputer := makeEProductComputer(total)
 
 	cNeg := bigNegate(proof.c, q)
 
@@ -381,7 +372,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 		if i == 1 {
 			e4com1 = &eArg{g1, pk, cNeg}
 		}
-		eProductParallel(&wg, i, n[i], communication, e1com1, e2com1, e3com1, e4com1)
+		eComputer.enqueue(i, n[i], e1com1, e2com1, e3com1, e4com1)
 
 		// line 5
 		e1com2 := &eArg{proof.resT[i][0], proof.rPrime[i], nil}
@@ -401,7 +392,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 		if i == 1 {
 			e5com2 = &eArg{grothYs[i%2][0], pk, cNeg}
 		}
-		eProductParallel(&wg, i, n[i]+1, communication, e1com2, e2com2, e3com2, e4com2, e5com2)
+		eComputer.enqueue(i, n[i]+1, e1com2, e2com2, e3com2, e4com2, e5com2)
 
 		// line 6
 		for j := 0; j < n[i]; j++ {
@@ -418,7 +409,7 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 				if i == 1 {
 					e4com = &eArg{grothYs[i%2][j+1], pk, cNeg}
 				}
-				eProductParallel(&wg, i, j, communication, e1com, e2com, e3com, e4com)
+				eComputer.enqueue(i, j, e1com, e2com, e3com, e4com)
 			} else {
 				// line 10
 				e1com := &eArg{proof.resT[i][j+1], proof.rPrime[i], nil}
@@ -431,22 +422,18 @@ func (proof *Proof) VerifyProof(pk PK, grothYs [][]interface{}, h *FP256BN.ECP, 
 				if i == 1 {
 					e4com = &eArg{grothYs[i%2][j+1], pk, cNeg}
 				}
-				eProductParallel(&wg, i, j, communication, e1com, e2com, e3com, e4com)
+				eComputer.enqueue(i, j, e1com, e2com, e3com, e4com)
 			}
 		}
 	}
 
-	wg.Wait()
-	close(communication)
-	for r := range communication {
-		if r.result == nil {
-			e = fmt.Errorf("error occurred in computing coms[%d][%d]", r.i, r.j)
-			return
-		}
-		coms[r.i][r.j] = r.result
+	coms, e = eComputer.compute()
+	if e != nil {
+		return
 	}
 
-	comNym := productOfExponents(FP256BN.ECP_generator(), proof.resCsk, h, proof.resNym)
+	g := generatorSameGroup(h)
+	comNym := productOfExponents(g, proof.resCsk, h, proof.resNym)
 	pointSubtract(comNym, pointMultiply(pkNym, proof.c))
 
 	// line 25
@@ -465,13 +452,13 @@ func hashCommitments(grothYs [][]interface{}, pk PK, rPrime []interface{}, coms 
 
 	for i := 0; i < len(grothYs); i++ {
 		for j := 0; j < len(grothYs[i%2]); j++ {
-			raw = append(raw, pointToBytes(grothYs[i%2][j])...)
+			raw = append(raw, PointToBytes(grothYs[i%2][j])...)
 		}
 	}
-	raw = append(raw, pointToBytes(pk)...)
+	raw = append(raw, PointToBytes(pk)...)
 	for i := 0; i < len(rPrime); i++ {
 		if rPrime[i] != nil {
-			raw = append(raw, pointToBytes(rPrime[i])...)
+			raw = append(raw, PointToBytes(rPrime[i])...)
 		}
 	}
 	for i := 0; i < len(coms); i++ {
@@ -481,7 +468,7 @@ func hashCommitments(grothYs [][]interface{}, pk PK, rPrime []interface{}, coms 
 			}
 		}
 	}
-	raw = append(raw, pointToBytes(comNym)...)
+	raw = append(raw, PointToBytes(comNym)...)
 	raw = append(raw, D.hash()...)
 	raw = append(raw, m...)
 

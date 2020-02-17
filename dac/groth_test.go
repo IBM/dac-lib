@@ -5,10 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dbogatov/fabric-amcl/amcl"
 	"github.com/dbogatov/fabric-amcl/amcl/FP256BN"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var groth *Groth
@@ -16,10 +15,7 @@ var grothMessage []interface{}
 
 // common setup routine for the tests in this file
 func setupGroth(first bool) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	groth = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 
@@ -47,6 +43,8 @@ func TestGroth(t *testing.T) {
 				testGrothVerifyWrongMessage,
 				testGrothVerifyNoCrash,
 				testGrothSignatureEquality,
+				testGrothSignatureMarshal,
+				testGrothSignatureUnMarshalFails,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -56,10 +54,7 @@ func TestGroth(t *testing.T) {
 
 // same PRG yields same keys
 func testGrothDeterministicGenerate(t *testing.T) {
-	prg := amcl.NewRAND()
-
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg := getNewRand(SEED)
 
 	_, first := groth.g1.(*FP256BN.ECP)
 
@@ -67,15 +62,14 @@ func testGrothDeterministicGenerate(t *testing.T) {
 
 	sk1, pk1 := grothLocal.Generate()
 
-	prg.Clean()
-	prg.Seed(1, []byte{SEED})
+	prg = getNewRand(SEED)
 
 	grothLocal = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 
 	sk2, pk2 := grothLocal.Generate()
 
 	assert.Check(t, bigEqual(sk1, sk2))
-	assert.Check(t, pkEqual(pk1, pk2))
+	assert.Check(t, PkEqual(pk1, pk2))
 }
 
 // different PRG yield different keys
@@ -84,7 +78,7 @@ func testGrothRandomizedGenerate(t *testing.T) {
 	sk2, pk2 := groth.Generate()
 
 	assert.Check(t, !bigEqual(sk1, sk2))
-	assert.Check(t, !pkEqual(pk1, pk2))
+	assert.Check(t, !PkEqual(pk1, pk2))
 }
 
 // sign method does not crash
@@ -256,10 +250,7 @@ func testGrothSignatureEquality(t *testing.T) {
 
 		t.Run(string(tc), func(t *testing.T) {
 
-			prg := amcl.NewRAND()
-
-			prg.Clean()
-			prg.Seed(1, []byte{SEED})
+			prg := getNewRand(SEED)
 
 			_, first := groth.g1.(*FP256BN.ECP)
 
@@ -267,8 +258,7 @@ func testGrothSignatureEquality(t *testing.T) {
 			sk, _ := grothLocal.Generate()
 			signature := grothLocal.Sign(sk, grothMessage)
 
-			prg.Clean()
-			prg.Seed(1, []byte{SEED})
+			prg = getNewRand(SEED)
 
 			grothLocal = MakeGroth(prg, first, GenerateYs(first, 3, prg))
 			sk, _ = grothLocal.Generate()
@@ -292,6 +282,27 @@ func testGrothSignatureEquality(t *testing.T) {
 			}
 		})
 	}
+}
+
+// marshaling and un-marshaling yields the original object
+func testGrothSignatureMarshal(t *testing.T) {
+	sk, _ := groth.Generate()
+
+	signature := groth.Sign(sk, grothMessage)
+	recovered := GrothSignatureFromBytes(signature.ToBytes())
+
+	assert.Check(t, signature.equals(*recovered))
+}
+
+// un-marshaling properly panics
+func testGrothSignatureUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	GrothSignatureFromBytes([]byte{0x13})
 }
 
 // Benchmarks

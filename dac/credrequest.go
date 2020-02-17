@@ -57,14 +57,7 @@ func MakeCredRequest(prg *amcl.RAND, sk SK, nonce []byte, L int) (credReq *CredR
 // Note that cheking the nonce is not included (needs to be done separately)
 func (credReq *CredRequest) Validate() (e error) {
 	q := FP256BN.NewBIGints(FP256BN.CURVE_Order)
-
-	var g interface{}
-
-	if _, first := credReq.ResT.(*FP256BN.ECP); first {
-		g = FP256BN.ECP_generator()
-	} else {
-		g = FP256BN.ECP2_generator()
-	}
+	g := generatorSameGroup(credReq.ResT)
 
 	// c := H(t, y, nonce)
 	c := hashCredRequest(q, credReq.ResT, credReq.Pk, credReq.Nonce)
@@ -82,8 +75,8 @@ func (credReq *CredRequest) Validate() (e error) {
 
 func hashCredRequest(q *FP256BN.BIG, t interface{}, y interface{}, nonce []byte) *FP256BN.BIG {
 	var raw []byte
-	raw = append(raw, pointToBytes(t)...)
-	raw = append(raw, pointToBytes(y)...)
+	raw = append(raw, PointToBytes(t)...)
+	raw = append(raw, PointToBytes(y)...)
 	raw = append(raw, nonce...)
 
 	return sha3(q, raw)
@@ -99,13 +92,15 @@ type credRequestMarshal struct {
 // CredRequestFromBytes un-marshals the credential request object using ASN1 encoding
 func CredRequestFromBytes(input []byte) (credReq *CredRequest) {
 	var marshal credRequestMarshal
-	asn1.Unmarshal(input, &marshal)
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling cred-request failed")
+	}
 
 	credReq = &CredRequest{}
 
 	credReq.Nonce = marshal.Nonce
-	credReq.Pk, _ = pointFromBytes(marshal.PK)
-	credReq.ResT, _ = pointFromBytes(marshal.ResT)
+	credReq.Pk, _ = PointFromBytes(marshal.PK)
+	credReq.ResT, _ = PointFromBytes(marshal.ResT)
 	credReq.ResR = FP256BN.FromBytes(marshal.ResR)
 
 	return
@@ -116,8 +111,8 @@ func (credReq *CredRequest) ToBytes() (result []byte) {
 	var marshal credRequestMarshal
 
 	marshal.Nonce = credReq.Nonce
-	marshal.PK = pointToBytes(credReq.Pk)
-	marshal.ResT = pointToBytes(credReq.ResT)
+	marshal.PK = PointToBytes(credReq.Pk)
+	marshal.ResT = PointToBytes(credReq.ResT)
 	marshal.ResR = bigToBytes(credReq.ResR)
 
 	result, _ = asn1.Marshal(marshal)
@@ -131,7 +126,7 @@ func (credReq *CredRequest) equal(other *CredRequest) (result bool) {
 		return
 	}
 
-	if !pkEqual(credReq.Pk, other.Pk) {
+	if !PkEqual(credReq.Pk, other.Pk) {
 		return
 	}
 
