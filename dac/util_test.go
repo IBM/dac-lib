@@ -396,7 +396,7 @@ func TestMiscellaneous(t *testing.T) {
 		r := pointListEquals([]interface{}{g1}, []interface{}{g1, g1})
 		assert.Check(t, !r)
 
-		r = pointListOfListEquals([][]interface{}{[]interface{}{g1}}, [][]interface{}{[]interface{}{g1}, []interface{}{g1}})
+		r = pointListOfListEquals([][]interface{}{{g1}}, [][]interface{}{{g1}, {g1}})
 		assert.Check(t, !r)
 	})
 
