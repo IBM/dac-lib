@@ -1,3 +1,3 @@
 # DAC Lib
 
-Implementation of the [Practical UC-Secure Delegatable Credentials with Attributes and Their Application to Blockchain](https://acmccs.github.io/papers/p683-camenischA.pdf).
+Implementation for the [Anonymous Transactions with Revocation and Auditing in Hyperledger Fabric](https://dbogatov.org/assets/docs/dac-fabric.pdf).
