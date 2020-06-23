@@ -47,6 +47,7 @@ code_navigation:
   image: dbogatov/docker-sources:golang-1.13-alpine
   stage: release
   script:
+    - apk add --update git
     - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
     - lsif-go
   artifacts:
