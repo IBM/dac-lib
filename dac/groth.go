@@ -208,8 +208,6 @@ func (groth *Groth) consistencyCheck(arg []interface{}) (e error) {
 	return
 }
 
-// TODO test Groth marshalling
-
 type grothSignatureMarshal struct {
 	R  []byte
 	S  []byte

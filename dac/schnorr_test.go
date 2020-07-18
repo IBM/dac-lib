@@ -35,6 +35,7 @@ func TestSchnorr(t *testing.T) {
 				testSchnorrVerifyTamperedSignature,
 				testSchnorrVerifyWrongMessage,
 				testSchnorrMarshal,
+				testSchnorrUnMarshalFails,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -148,6 +149,17 @@ func testSchnorrMarshal(t *testing.T) {
 	r := schnorr.Verify(pk, *recovered, m)
 
 	assert.Check(t, r)
+}
+
+// un-marshaling properly panics
+func testSchnorrUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	SchnorrSignatureFromBytes([]byte{0x13})
 }
 
 // Benchmarks
