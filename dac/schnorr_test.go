@@ -34,6 +34,7 @@ func TestSchnorr(t *testing.T) {
 				testSchnorrVerifyCorrect,
 				testSchnorrVerifyTamperedSignature,
 				testSchnorrVerifyWrongMessage,
+				testSchnorrMarshal,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -131,6 +132,22 @@ func testSchnorrVerifyTamperedSignature(t *testing.T) {
 
 	assert.ErrorContains(t, rSTampered, "")
 	assert.ErrorContains(t, rETampered, "")
+}
+
+// marshaling and un-marshaling yields the original object
+func testSchnorrMarshal(t *testing.T) {
+
+	m := []byte("Message")
+
+	sk, pk := schnorr.Generate()
+
+	signature := schnorr.Sign(sk, m)
+	bytes := signature.ToBytes()
+	recovered := SchnorrSignatureFromBytes(bytes)
+
+	r := schnorr.Verify(pk, *recovered, m)
+
+	assert.Check(t, r)
 }
 
 // Benchmarks

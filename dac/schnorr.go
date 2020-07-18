@@ -1,6 +1,7 @@
 package dac
 
 import (
+	"encoding/asn1"
 	"fmt"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
@@ -87,4 +88,36 @@ func (schnorr *Schnorr) hash(r interface{}, m []byte) *FP256BN.BIG {
 	raw = append(raw, m[:]...)
 
 	return sha3(schnorr.q, raw)
+}
+
+type schnorrSignatureMarshal struct {
+	S []byte
+	E []byte
+}
+
+// ToBytes marshals the NIZK object using ASN1 encoding
+func (signature *SchnorrSignature) ToBytes() (result []byte) {
+	var marshal schnorrSignatureMarshal
+
+	marshal.S = bigToBytes(signature.s)
+	marshal.E = bigToBytes(signature.e)
+
+	result, _ = asn1.Marshal(marshal)
+
+	return
+}
+
+// SchnorrSignatureFromBytes un-marshals the NIZK object using ASN1 encoding
+func SchnorrSignatureFromBytes(input []byte) (signature *SchnorrSignature) {
+	var marshal schnorrSignatureMarshal
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling schnorr signature failed")
+	}
+
+	signature = &SchnorrSignature{}
+
+	signature.s = FP256BN.FromBytes(marshal.S)
+	signature.e = FP256BN.FromBytes(marshal.E)
+
+	return
 }
