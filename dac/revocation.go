@@ -1,6 +1,7 @@
 package dac
 
 import (
+	"encoding/asn1"
 	"fmt"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
@@ -135,4 +136,51 @@ func hashRevocation(q *FP256BN.BIG, h, r, s interface{}, com1 *FP256BN.FP12, com
 	raw = append(raw, bigToBytes(epoch)...)
 
 	return sha3(q, raw)
+}
+
+type revocationProofMarshal struct {
+	C      []byte
+	Res1   []byte
+	Res2   []byte
+	Res3   []byte
+	Res4   []byte
+	RPrime []byte
+	SPrime []byte
+}
+
+// ToBytes marshals the NIZK object using ASN1 encoding
+func (proof *RevocationProof) ToBytes() (result []byte) {
+	var marshal revocationProofMarshal
+
+	marshal.C = bigToBytes(proof.c)
+	marshal.Res1 = PointToBytes(proof.res1)
+	marshal.Res2 = bigToBytes(proof.res2)
+	marshal.Res3 = PointToBytes(proof.res3)
+	marshal.Res4 = bigToBytes(proof.res4)
+	marshal.RPrime = PointToBytes(proof.rPrime)
+	marshal.SPrime = PointToBytes(proof.sPrime)
+
+	result, _ = asn1.Marshal(marshal)
+
+	return
+}
+
+// RevocationProofFromBytes un-marshals the NIZK object using ASN1 encoding
+func RevocationProofFromBytes(input []byte) (proof *RevocationProof) {
+	var marshal revocationProofMarshal
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling schnorr signature failed")
+	}
+
+	proof = &RevocationProof{}
+
+	proof.c = FP256BN.FromBytes(marshal.C)
+	proof.res1, _ = PointFromBytes(marshal.Res1)
+	proof.res2 = FP256BN.FromBytes(marshal.Res2)
+	proof.res3, _ = PointFromBytes(marshal.Res3)
+	proof.res4 = FP256BN.FromBytes(marshal.Res4)
+	proof.rPrime, _ = PointFromBytes(marshal.RPrime)
+	proof.sPrime, _ = PointFromBytes(marshal.SPrime)
+
+	return
 }

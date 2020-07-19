@@ -1088,6 +1088,22 @@ func BenchmarkSchemeAgainsRust(b *testing.B) {
 	})
 }
 
+func BenchmarkSchemeAgainsOlderIdemix(b *testing.B) {
+
+	const L = 1
+	const n = 5
+
+	b.Run(fmt.Sprintf("E2E L=%d n=%d", L, n), func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			prg := getNewRand(SEED + 1)
+
+			creds, sk, pk, ys, skNym, pkNym, h, _ := generateChain(L, n)
+			proof, _ := creds.Prove(prg, sk, pk, []Index{}, []byte("Message"), ys, h, skNym)
+			proof.VerifyProof(pk, ys, h, pkNym, []Index{}, []byte("Message"))
+		}
+	})
+}
+
 func BenchmarkSchemeAgainsOriginalPaper(b *testing.B) {
 
 	prg := getNewRand(SEED + 1)
