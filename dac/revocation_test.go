@@ -56,6 +56,8 @@ func TestRevocation(t *testing.T) {
 				testRevocationHappyPath,
 				testRevocationVerificationFailsEarly,
 				testRevocationVerificationFailsLater,
+				testRevocationMarshal,
+				testRevocationUnMarshalFails,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -97,6 +99,32 @@ func testRevocationVerificationFailsLater(t *testing.T) {
 	verificationResult := proof.Verify(pkNym, epoch, h, revokePk, ys)
 
 	assert.ErrorContains(t, verificationResult, "later")
+}
+
+// marshaling and un-marshaling yields the original object
+func testRevocationMarshal(t *testing.T) {
+
+	prg := getNewRand(SEED)
+
+	pkNym, epoch, h, revokePk, ys, proof := revocationProve(prg, t)
+
+	bytes := proof.ToBytes()
+	recovered := RevocationProofFromBytes(bytes)
+
+	verificationResult := recovered.Verify(pkNym, epoch, h, revokePk, ys)
+
+	assert.Check(t, verificationResult)
+}
+
+// un-marshaling properly panics
+func testRevocationUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	RevocationProofFromBytes([]byte{0x13})
 }
 
 // Benchmarks
