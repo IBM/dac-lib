@@ -13,6 +13,7 @@ This work should be cited as
 
 <details>
  <summary>or with bibtex</summary>
+
 ```tex
 @inproceedings{dac-revocation-auditing,
   author       = {Dmytro Bogatov and Angelo De Caro and Kaoutar Elkhiyaoui and Björn Tackmann},
@@ -22,6 +23,7 @@ This work should be cited as
   publisher    = {Springer International Publishing}
 }
 ```
+
 </details>
 
 ## What's implemented
@@ -56,6 +58,7 @@ Quite simple: `go test ./dac/ -v`
 
 <details>
  <summary>sample output</summary>
+
 ```
 === RUN   TestAuditing
 === RUN   TestAuditing/h_in_g1
@@ -1083,4 +1086,5 @@ L     n     attributes      size
 PASS
 ok  	github.com/dbogatov/dac-lib/dac	151.707s
 ```
+
 </details>
