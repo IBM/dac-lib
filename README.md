@@ -1,6 +1,6 @@
 # Delegatable Anonymous Credentials Library
 
-This is the Go implementation of the Delegatable Anonymous Credentials (DAC) library presented in [Anonymous Transactions with Revocation and Auditing in Hyperledger Fabric](https://eprint.iacr.org/2019/1097.pdf) (with base protocol first introduced in [Practical UC-secure delegatable credentials with attributes and their application to blockchain](https://acmccs.github.io/papers/p683-camenischA.pdf)).
+This is the Go implementation of the Delegatable Anonymous Credentials (DAC) library presented in [Anonymous Transactions with Revocation and Auditing in Hyperledger Fabric](https://eprint.iacr.org/2019/1097.pdf) (with the base protocol first introduced in [Practical UC-secure delegatable credentials with attributes and their application to blockchain](https://acmccs.github.io/papers/p683-camenischA.pdf)).
 Hereafter, the references are made to [Anonymous Transactions with Revocation and Auditing in Hyperledger Fabric](https://eprint.iacr.org/2019/1097.pdf).
 
 This work has been supported in part by the European Union's Horizon 2020 research and innovation programme under grant agreement No. 780477 PRIViLEDGE.
@@ -29,14 +29,14 @@ This work should be cited as
 ## What's implemented
 
 This library is implemented as a Go 13 module with over 470 tests.
-The documentation is automatically generate on pkg.go.dev: [dbogatov/dac-lib](https://pkg.go.dev/github.com/dbogatov/dac-lib).
+The documentation is automatically generated on pkg.go.dev: [dbogatov/dac-lib](https://pkg.go.dev/github.com/dbogatov/dac-lib).
 
-On a high level, here is the API (al objects can be marshalled).
+On a high level, here is the API (all objects can be marshalled).
 
-- Schnorr signatures (the signature object key generation, signing, verifying and marshalling routines) are in `schnorr.go`.
+- Schnorr signatures (the signature object, key generation, signing, verifying and marshalling routines) are in `schnorr.go`.
 The mechanism works for both groups $`\mathbb{G}_1`$ and $`\mathbb{G}_2`$.
 
-- Groth signatures (the signature object key generation, signing, randomizing, verifying and marshalling routines) are in `groth.go`.
+- Groth signatures (the signature object, key generation, signing, randomizing, verifying and marshalling routines) are in `groth.go`.
 The mechanism works for both groups $`\mathbb{G}_1`$ and $`\mathbb{G}_2`$.
 
 - Sibling signatures is a wrapper around Schnorr and Groth to be used in DAC itself, see `siblings.go`.
@@ -48,9 +48,20 @@ Generating and verifying proof is in Algorithm 6 in the [paper](https://eprint.i
 
 - `auditing.go` has routines to generate an encryption, decrypt it, generate the proof and verify it, see Algorithm 5 in the [paper](https://eprint.iacr.org/2019/1097.pdf).
 
-- `pseudonym.go` manipulates pseudonyms (Algorithm 3 in the [paper](https://eprint.iacr.org/2019/1097.pdf)), `credrequest.go` hasa secure way to request a credential and `util.go` has the helpers.
+- `pseudonym.go` manipulates pseudonyms (Algorithm 3 in the [paper](https://eprint.iacr.org/2019/1097.pdf)), `credrequest.go` has a secure way to request a credential and `util.go` includes the helpers.
 
-- See `TestHappyPath` in `scheme_test.go` for the end-to-end example of creating credentials, revoking and auditing and manipulating marshalled objects.
+- See `TestHappyPath` in `scheme_test.go` for the end-to-end example of creating credentials, revoking, auditing and manipulating marshalled objects.
+[dbogatov/fabric-simulator](https://github.com/dbogatov/fabric-simulator) is the example of a project (distributed system communicating over the network) that uses this library.
+For example:
+```go
+import "github.com/dbogatov/dac-lib/dac"
+
+// ...
+// assume we have helpers
+schnorr := dac.MakeSchnorr(helpers.NewRand(), false)
+
+// ...
+```
 
 ## How to run the tests
 
