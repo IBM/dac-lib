@@ -1,6 +1,7 @@
 package dac
 
 import (
+	"encoding/asn1"
 	"fmt"
 
 	"github.com/dbogatov/fabric-amcl/amcl"
@@ -117,4 +118,74 @@ func hashAuditing(q *FP256BN.BIG, com1, com2, com3 interface{}, encryption Audit
 	raw = append(raw, PointToBytes(pkNym)...)
 
 	return sha3(q, raw)
+}
+
+type auditingProofMarshal struct {
+	C    []byte
+	Res1 []byte
+	Res2 []byte
+	Res3 []byte
+}
+
+// ToBytes marshals the NIZK object using ASN1 encoding
+func (proof *AuditingProof) ToBytes() (result []byte) {
+	var marshal auditingProofMarshal
+
+	marshal.C = bigToBytes(proof.c)
+	marshal.Res1 = bigToBytes(proof.res1)
+	marshal.Res2 = bigToBytes(proof.res2)
+	marshal.Res3 = bigToBytes(proof.res3)
+
+	result, _ = asn1.Marshal(marshal)
+
+	return
+}
+
+// AuditingProofFromBytes un-marshals the NIZK object using ASN1 encoding
+func AuditingProofFromBytes(input []byte) (proof *AuditingProof) {
+	var marshal auditingProofMarshal
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling schnorr signature failed")
+	}
+
+	proof = &AuditingProof{}
+
+	proof.c = FP256BN.FromBytes(marshal.C)
+	proof.res1 = FP256BN.FromBytes(marshal.Res1)
+	proof.res2 = FP256BN.FromBytes(marshal.Res2)
+	proof.res3 = FP256BN.FromBytes(marshal.Res3)
+
+	return
+}
+
+type auditingEncryptionMarshal struct {
+	Enc1 []byte
+	Enc2 []byte
+}
+
+// ToBytes marshals the NIZK object using ASN1 encoding
+func (encryption *AuditingEncryption) ToBytes() (result []byte) {
+	var marshal auditingEncryptionMarshal
+
+	marshal.Enc1 = PointToBytes(encryption.enc1)
+	marshal.Enc2 = PointToBytes(encryption.enc2)
+
+	result, _ = asn1.Marshal(marshal)
+
+	return
+}
+
+// AuditingEncryptionFromBytes un-marshals the NIZK object using ASN1 encoding
+func AuditingEncryptionFromBytes(input []byte) (encryption *AuditingEncryption) {
+	var marshal auditingEncryptionMarshal
+	if rest, err := asn1.Unmarshal(input, &marshal); len(rest) != 0 || err != nil {
+		panic("un-marshalling schnorr signature failed")
+	}
+
+	encryption = &AuditingEncryption{}
+
+	encryption.enc1, _ = PointFromBytes(marshal.Enc1)
+	encryption.enc2, _ = PointFromBytes(marshal.Enc2)
+
+	return
 }

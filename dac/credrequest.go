@@ -10,7 +10,7 @@ import (
 
 // CredRequest encapsulates a public key with given nonce along with
 // a NIZK of corresponding secret key
-// All algorithm work for both ECp and ECP2 (depending on L)
+// All algorithm work for both ECP and ECP2 (depending on L)
 type CredRequest struct {
 	Nonce []byte
 	Pk    PK

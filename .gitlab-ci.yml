@@ -1,5 +1,6 @@
 stages:
   - test
+  - release
 
 go-vet:
   image: dbogatov/docker-sources:golang-1.13-alpine
@@ -30,7 +31,6 @@ include:
   - template: SAST.gitlab-ci.yml
   # - template: Code-Quality.gitlab-ci.yml
 
-
 sast:
   variables:
     SAST_DISABLE_DIND: "true"
@@ -40,6 +40,22 @@ sast:
 dependency_scanning:
   variables:
     DS_DISABLE_DIND: "true"
+  tags:
+    - docker
+
+code_navigation:
+  image: dbogatov/docker-sources:golang-1.13-alpine
+  stage: release
+  script:
+    - apk add --update git
+    - go get github.com/sourcegraph/lsif-go/cmd/lsif-go
+    - lsif-go
+  artifacts:
+    reports:
+      lsif: dump.lsif
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master"'
+      when: on_success
   tags:
     - docker
 

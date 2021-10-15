@@ -1,0 +1,42 @@
+abstract: |
+  In permissioned blockchain systems, participants are admitted to the network by receiving a credential from a certification authority.
+  Each transaction processed by the network is required to be authorized by a valid participant who authenticates via her credential.
+  Use case settings where privacy is a concern thus require proper privacy-preserving authentication and authorization mechanisms.
+
+  Anonymous credential schemes allow a user to authenticate while showing only those attributes necessary in a given setting.
+  This makes them a great tool for authorizing transactions in permissioned blockchain systems based on the user's attributes.
+  In most setups, there is one distinct certification authority for each organization in the network.
+  Consequently, the use of plain anonymous credential schemes still leaks the association of a user to the organization that issued her credentials.
+  Camenisch, Drijvers and Dubovitskaya (CCS 2017) therefore suggest the use of a delegatable anonymous credential scheme to also hide that remaining piece of information.
+
+  In this paper, we propose the revocation and auditability - two functionalities that are necessary for real-world adoption - and integrate them into the scheme.
+  We present a complete protocol, its security definition and the proof, and provide its open-source implementation.
+  Our distributed-setting performance measurements show that the integration of the scheme with Hyperledger Fabric, while incurring an overhead in comparison to the less privacy-preserving solutions, is practical for settings with stringent privacy requirements.
+authors:
+    - affiliation: "Boston University"
+      family-names: Bogatov
+      given-names: Dmytro
+      orcid: "https://orcid.org/0000-0002-9357-8834"
+    - affiliation: "IBM Research, Zürich"
+      family-names: "De Caro"
+      given-names: Angelo
+    - affiliation: "IBM Research, Zürich"
+      family-names: Elkhiyaoui
+      given-names: Kaoutar
+    - affiliation: DFINITY
+      family-names: " Tackmann"
+      given-names: "Björn"
+      orcid: "https://orcid.org/0000-0003-2793-7541"
+cff-version: "1.1.0"
+identifiers:
+    - type: url
+      value: "https://pkg.go.dev/github.com/dbogatov/dac-lib"
+keywords:
+    - "anonymous credentials "
+    - revocation
+    - auditing
+    - "zero-knowledge proofs"
+license: MIT
+message:
+repository-code: "https://github.com/dbogatov/dac-lib"
+title: "Anonymous Transactions with Revocation and Auditing in Hyperledger Fabric"

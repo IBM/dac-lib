@@ -46,6 +46,9 @@ func TestAuditing(t *testing.T) {
 				testAuditingHappyPath,
 				testAuditingDecryptionFail,
 				testAuditingVerificationFail,
+				testAuditingMarshal,
+				testAuditingEncryptionUnMarshalFails,
+				testAuditingProofUnMarshalFails,
 			} {
 				t.Run(funcToString(reflect.ValueOf(test)), test)
 			}
@@ -92,6 +95,48 @@ func testAuditingVerificationFail(t *testing.T) {
 	verificationResult := proof.Verify(encryption, pkNym, auditPk, h)
 
 	assert.ErrorContains(t, verificationResult, "verification")
+}
+
+// marshaling and un-marshaling yields the original object
+func testAuditingMarshal(t *testing.T) {
+
+	prg := getNewRand(SEED)
+
+	h, userSk, userPk, auditSk, auditPk, encryption, r := auditingEncrypt(prg)
+
+	assert.Check(t, pointEqual(encryption.AuditingDecrypt(auditSk), userPk))
+
+	proof, pkNym := auditingProve(prg, userSk, h, encryption, userPk, auditPk, r)
+
+	bytesEnc := encryption.ToBytes()
+	recoveredEnc := AuditingEncryptionFromBytes(bytesEnc)
+	bytesProof := proof.ToBytes()
+	recoveredProof := AuditingProofFromBytes(bytesProof)
+
+	verificationResult := recoveredProof.Verify(*recoveredEnc, pkNym, auditPk, h)
+
+	assert.Check(t, verificationResult)
+}
+
+// un-marshaling properly panics
+func testAuditingEncryptionUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	AuditingEncryptionFromBytes([]byte{0x13})
+}
+
+func testAuditingProofUnMarshalFails(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("erroneous un-marshalling did not panic")
+		}
+	}()
+
+	AuditingProofFromBytes([]byte{0x13})
 }
 
 // Benchmarks
